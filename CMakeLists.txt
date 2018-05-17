@@ -17,6 +17,10 @@ set(BELIEF_REV_SOURCES
     src/belief.cpp
 )
 
+add_custom_target(minisat_all COMMAND make r
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/minisat_all
+)
+
 add_executable(belief_rev ${BELIEF_REV_SOURCES})
 
 find_package(OpenSSL)
@@ -26,3 +30,5 @@ target_link_libraries(belief_rev OpenSSL::SSL OpenSSL::Crypto)
 target_include_directories(belief_rev PRIVATE
     src
 )
+
+add_dependencies(belief_rev minisat_all)
