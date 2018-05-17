@@ -9,7 +9,39 @@
 #include <bitset>
 #include "belief.h"
 
-//This is an n bit brute force where n is the number of variables in the clause list
+static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
+    for (const auto& clause : clause_list) {
+        bool term_false = true;
+        for (const auto term : clause) {
+            if (state[std::abs(term) - 1] != (term < 0)) {
+                term_false = false;
+                break;
+            }
+        }
+        if (term_false) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool satisfies(const std::bitset<64>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
+    for (const auto& clause : clause_list) {
+        bool term_false = true;
+        for (const auto term : clause) {
+            if (state[std::abs(term) - 1] != (term < 0)) {
+                term_false = false;
+                break;
+            }
+        }
+        if (term_false) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//This is an n bit brute force where n is the length of each belief
 //I don't like this, but unless I settle for 1 state per formula, my only option is an ALL-SAT solver
 //Which is pretty damn rare, and I can't find significant information outside of 1 or 2 papers
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
@@ -36,25 +68,18 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 
     for (uint64_t mask = 0; mask < (1ull << (belief_length)); ++mask) {
         std::bitset<64> bs{mask};
-        std::vector<bool> good_state;
 
-        for (const auto& clause : clause_list) {
-            for (const auto term : clause) {
-                if (bs[std::abs(term) - 1] == (term < 0)) {
-                    //Term is false, this is not a valid state
-                    goto bad_state;
-                }
-            }
+        if (!satisfies(bs, clause_list)) {
+            continue;
         }
 
         //Set the good state
+        std::vector<bool> good_state;
+        good_state.reserve(belief_length);
         for (unsigned long i = 0; i < belief_length; ++i) {
             good_state.push_back(bs[i]);
         }
         generated_states.emplace_back(std::move(good_state));
-
-bad_state:
-        continue;
     }
 
     return generated_states;
@@ -116,15 +141,11 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
 
     assert(!revised_beliefs.empty());
 
+
     for (const auto& belief : revised_beliefs) {
-        for (const auto& clause : formula) {
-            for (const auto term : clause) {
-                if (belief[std::abs(term) - 1] == (term < 0)) {
-                    //Term is false, this is not a valid state
-                    std::cerr << "Revised belief does not satisfy provided formula\n";
-                    abort();
-                }
-            }
+        if (!satisfies(belief, formula)) {
+            std::cerr << "Revised belief does not satisfy provided formula\n";
+            abort();
         }
     }
 
