@@ -9,22 +9,6 @@
 #include <bitset>
 #include "belief.h"
 
-static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
-    for (const auto& clause : clause_list) {
-        bool term_false = true;
-        for (const auto term : clause) {
-            if (state[std::abs(term) - 1] != (term < 0)) {
-                term_false = false;
-                break;
-            }
-        }
-        if (term_false) {
-            return false;
-        }
-    }
-    return true;
-}
-
 static bool satisfies(const std::bitset<64>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
     for (const auto& clause : clause_list) {
         bool term_false = true;
@@ -45,20 +29,8 @@ static bool satisfies(const std::bitset<64>& state, const std::vector<std::vecto
 //I don't like this, but unless I settle for 1 state per formula, my only option is an ALL-SAT solver
 //Which is pretty damn rare, and I can't find significant information outside of 1 or 2 papers
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
-    int32_t variable_count = 0;
-
-    //Find maximum term
-    for (const auto& clause : clause_list) {
-        for (const auto term : clause) {
-            if (std::abs(term) > variable_count) {
-                variable_count = std::abs(term);
-            }
-        }
-    }
-
-    //We need to brute force variable_count numbers of variables
-
-    if (variable_count > 64) {
+    //We need to brute force belief_length numbers of variables
+    if (belief_length > 64) {
         //Undefined behaviour, and frankly, we'll never brute force 64 bits
         std::cerr << "State generation out of range\n";
         abort();
@@ -66,6 +38,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 
     std::vector<std::vector<bool>> generated_states;
 
+#pragma omp parallel for shared(generated_states, clause_list)
     for (uint64_t mask = 0; mask < (1ull << (belief_length)); ++mask) {
         std::bitset<64> bs{mask};
 
@@ -79,6 +52,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         for (unsigned long i = 0; i < belief_length; ++i) {
             good_state.push_back(bs[i]);
         }
+#pragma omp critical
         generated_states.emplace_back(std::move(good_state));
     }
 
@@ -140,8 +114,6 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
     }
 
     assert(!revised_beliefs.empty());
-
-    assert(std::all_of(revised_beliefs.cbegin(), revised_beliefs.cend(), [&](const auto& belief){return satisfies(belief, formula);}));
 
     //We're done
     std::cout << "Revised belief set:\n";
