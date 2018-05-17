@@ -141,13 +141,7 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
 
     assert(!revised_beliefs.empty());
 
-
-    for (const auto& belief : revised_beliefs) {
-        if (!satisfies(belief, formula)) {
-            std::cerr << "Revised belief does not satisfy provided formula\n";
-            abort();
-        }
-    }
+    assert(std::all_of(revised_beliefs.cbegin(), revised_beliefs.cend(), [&](const auto& belief){return satisfies(belief, formula);}));
 
     //We're done
     std::cout << "Revised belief set:\n";
