@@ -14,6 +14,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(BELIEF_REV_SOURCES
     src/main.cpp
     src/file.cpp
+    src/belief.cpp
 )
 
 add_executable(belief_rev ${BELIEF_REV_SOURCES})

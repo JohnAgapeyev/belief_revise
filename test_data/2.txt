@@ -1,0 +1,13 @@
+#Tests relative revision, no answer subset exists in beliefs, so it focuses on distance instead
+dead
+beef
+cafe
+babe
+1234
+4567
+cdef
+s
+-2 0
+-3 0
+1 0
+

@@ -1,9 +1,14 @@
-#This is a comment
-deadbeef
-12345af5
+#Tests exact subset - 1 solution, already in provided beliefs
+dead
+beef
+cafe
+babe
+1234
+4567
+89ab
+cdef
 s
 -2 0
-#This is another comment further down
 -3 0
 1 0
 

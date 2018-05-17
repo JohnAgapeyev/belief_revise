@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "file.h"
+#include "belief.h"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -15,7 +16,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Initial belief states:\n";
     for (const auto& state : data.first) {
-        for (int i = 0; i < state.size(); ++i) {
+        for (unsigned long i = 0; i < state.size(); ++i) {
             std::cout << state[i];
         }
         std::cout << "\n";
@@ -28,6 +29,8 @@ int main(int argc, char **argv) {
         }
         std::cout << "\n";
     }
+
+    revise_beliefs(data.first, data.second);
 
     return EXIT_SUCCESS;
 }

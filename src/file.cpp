@@ -85,5 +85,10 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> rea
         }
     }
 
+    if (belief_state.empty() || clause_list.empty()) {
+        std::cerr << "File must contain both an initial belief state, and a formula\n";
+        return {};
+    }
+
     return {belief_state, clause_list};
 }
