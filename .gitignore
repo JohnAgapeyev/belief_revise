@@ -71,3 +71,6 @@ CTestTestfile.cmake
 
 # Bin directory
 bin/
+
+# Minisat All directory
+minisat_all
