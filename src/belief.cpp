@@ -7,6 +7,14 @@
 #include <iostream>
 #include <cmath>
 #include <bitset>
+#include <fstream>
+#include <sstream>
+#include <iterator>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "belief.h"
 
 static bool satisfies(const std::bitset<64>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
@@ -29,6 +37,7 @@ static bool satisfies(const std::bitset<64>& state, const std::vector<std::vecto
 //I don't like this, but unless I settle for 1 state per formula, my only option is an ALL-SAT solver
 //Which is pretty damn rare, and I can't find significant information outside of 1 or 2 papers
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
+#if 0
     //We need to brute force belief_length numbers of variables
     if (belief_length > 64) {
         //Undefined behaviour, and frankly, we'll never brute force 64 bits
@@ -57,6 +66,92 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
     }
 
     return generated_states;
+#else
+
+    const char *input_filename = ".tmp.input";
+    const char *output_filename = ".tmp.output";
+
+    creat(input_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    creat(output_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+    {
+        std::ofstream ofs{input_filename, std::ios_base::out | std::ios_base::trunc};
+        if (!ofs) {
+            std::cerr << "Unable to open output file\n";
+            exit(EXIT_FAILURE);
+        }
+
+        for (const auto& clause : clause_list) {
+            std::copy(clause.cbegin(), clause.cend(), std::ostream_iterator<int32_t>(ofs, " "));
+            ofs << "0\n";
+        }
+    }
+
+    pid_t parent = getpid();
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        std::cerr << "Unable to fork child\n";
+        exit(EXIT_FAILURE);
+    } else if (pid == 0) {
+        // we are the child
+        //execlp("minisat_all/bdd_minisat_all_release", input_filename, output_filename, ">/dev/null", "2>/dev/null");
+        execl("./minisat_all/bdd_minisat_all_release", input_filename, output_filename);
+        exit(EXIT_FAILURE);
+    }
+    int status;
+    wait(&status);
+#if 0
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        //Everything went well, do nothing
+    } else {
+        std::cerr << "Child processed encountered an error\n";
+        std::cerr << WIFEXITED(status) << "\n";
+        std::cerr << WEXITSTATUS(status) << "\n";
+        exit(EXIT_FAILURE);
+    }
+#endif
+
+    std::ifstream ifs{output_filename};
+    if (!ifs) {
+        std::cerr << "Unable to open results file\n";
+        exit(EXIT_FAILURE);
+    }
+
+    std::vector<std::vector<int32_t>> output_states;
+
+    for (std::string line; std::getline(ifs, line);) {
+        std::istringstream iss{std::move(line)};
+
+        std::vector<int32_t> clause_tokens;
+
+        clause_tokens.assign(std::istream_iterator<int32_t>(iss),
+                std::istream_iterator<int32_t>());
+        clause_tokens.erase(std::remove(clause_tokens.begin(), clause_tokens.end(), 0),
+                clause_tokens.end());
+        clause_tokens.shrink_to_fit();
+
+        if (clause_tokens.empty()) {
+            continue;
+        }
+
+        output_states.emplace_back(std::move(clause_tokens));
+    }
+
+    std::vector<std::vector<bool>> generated_states;
+
+    for (const auto& clause : output_states) {
+        std::vector<bool> converted_state{clause.size(), false, std::allocator<int32_t>()};
+
+        for (const auto term : clause) {
+            converted_state[std::abs(term) - 1] = (term > 0);
+        }
+
+        generated_states.emplace_back(std::move(converted_state));
+    }
+
+    return generated_states;
+#endif
 }
 
 //Caluclate the hamming distance between a state and the set of beliefs
