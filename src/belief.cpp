@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <chrono>
 #include "belief.h"
 
 static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
@@ -139,14 +140,45 @@ unsigned long state_difference(const std::vector<bool>& state, const std::vector
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         const auto& b = *it;
         assert(state.size() == b.size());
+        std::chrono::high_resolution_clock t;
 
         unsigned long count = 0;
+
+        const auto start = t.now();
 
 #pragma omp simd
         for (unsigned long i = 0; i < b.size(); ++i) {
             count += b[i] ^ state[i];
         }
         min_dist = std::min(min_dist, count);
+
+        const auto end = t.now();
+
+        //std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
+    }
+
+    return min_dist;
+}
+
+unsigned long state_difference(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
+    unsigned long min_dist = ULONG_MAX;
+
+    //for (const auto& b : belief_set) {
+#pragma omp parallel for reduction(min: min_dist) schedule(static)
+    for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
+        const auto& b = *it;
+        assert(state.size() == b.size());
+        std::chrono::high_resolution_clock t;
+
+        unsigned long count = 0;
+
+        const auto start = t.now();
+
+        min_dist = std::min(min_dist, (state ^ b).count());
+
+        const auto end = t.now();
+
+        //std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
     }
 
     return min_dist;
@@ -169,16 +201,68 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
         //Calculate distances and add stuff that way
         unsigned long i = 0;
         std::multimap<unsigned long, std::vector<bool>> distance_map;
-        //for (const auto& state : formula_states) {
-#pragma omp parallel for schedule(static)
-        for (auto it = formula_states.cbegin(); it < formula_states.cend(); ++it) {
-            const auto& state = *it;
-            const auto diff = state_difference(state, original_beliefs);
-#pragma omp critical
-            distance_map.emplace(diff, state);
-            //distance_map.emplace(state_difference(state, original_beliefs), state);
-            std::cout << "Finished state " << i++ << "\n";
+
+
+
+        //512 bits because that is infeasible to compute
+        //Could do 256, but theoretically, I might be able to do that
+        std::vector<std::bitset<512>> formula_bits;
+        std::vector<std::bitset<512>> belief_bits;
+
+        formula_bits.reserve(formula_states.size());
+        belief_bits.reserve(original_beliefs.size());
+
+        for (const auto& state : formula_states) {
+            std::bitset<512> bs;
+            for (unsigned int i = 0; i < 512; ++i) {
+                bs[i] = (i < state.size()) ? state[i] : false;
+            }
+            formula_bits.emplace_back(std::move(bs));
         }
+        for (const auto& state : original_beliefs) {
+            std::bitset<512> bs;
+            for (unsigned int i = 0; i < 512; ++i) {
+                bs[i] = (i < state.size()) ? state[i] : false;
+            }
+            belief_bits.emplace_back(std::move(bs));
+        }
+
+        std::cout << "Done conversion\n";
+
+        std::chrono::high_resolution_clock t;
+
+        //for (const auto& state : formula_bits) {
+        for (unsigned long i = 0; i < formula_bits.size(); ++i) {
+            const auto start = t.now();
+            distance_map.emplace(state_difference(formula_bits[i], belief_bits), formula_states[i]);
+
+            const auto end = t.now();
+            //std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
+        }
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+        for (const auto& state : formula_states) {
+            const auto start = t.now();
+            const auto diff = state_difference(state, original_beliefs);
+            distance_map.emplace(state_difference(state, original_beliefs), state);
+            //elements.emplace_back(state_difference(state, original_beliefs), state);
+
+            const auto end = t.now();
+            std::cout << "Finished state " << i++ << "\n";
+            std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
+        }
+        //distance_map.insert(elements.begin(), elements.end());
+#endif
 
         //Since no element is contained inside the original beliefs, no distance will be zero
         const auto min_dist = distance_map.upper_bound(0)->first;
