@@ -87,30 +87,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         }
     }
 
-    pid_t parent = getpid();
-    pid_t pid = fork();
-
-    if (pid == -1) {
-        std::cerr << "Unable to fork child\n";
-        exit(EXIT_FAILURE);
-    } else if (pid == 0) {
-        // we are the child
-        //execlp("minisat_all/bdd_minisat_all_release", input_filename, output_filename, ">/dev/null", "2>/dev/null");
-        execl("./minisat_all/bdd_minisat_all_release", input_filename, output_filename);
-        exit(EXIT_FAILURE);
-    }
-    int status;
-    wait(&status);
-#if 0
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        //Everything went well, do nothing
-    } else {
-        std::cerr << "Child processed encountered an error\n";
-        std::cerr << WIFEXITED(status) << "\n";
-        std::cerr << WEXITSTATUS(status) << "\n";
-        exit(EXIT_FAILURE);
-    }
-#endif
+    system("./minisat_all/bdd_minisat_all_release .tmp.input .tmp.output");
 
     std::ifstream ifs{output_filename};
     if (!ifs) {
