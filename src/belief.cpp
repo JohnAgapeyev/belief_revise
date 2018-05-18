@@ -109,7 +109,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 
         //Pad the state up to the length of the beliefs
 #pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state) schedule(static)
-        for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back()) + 1)); ++mask) {
+        for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back()))); ++mask) {
             std::bitset<64> bs{mask};
 
             //Add the bits to the end of the state
