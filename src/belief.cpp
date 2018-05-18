@@ -189,7 +189,6 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
     if (revised_beliefs.empty()) {
         //Calculate distances and add stuff that way
-        unsigned long i = 0;
         std::multimap<unsigned long, std::vector<bool>> distance_map;
 
         //512 bits because that is infeasible to compute
