@@ -106,7 +106,6 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         for (const auto term : clause) {
             converted_state[std::abs(term) - 1] = (term > 0);
         }
-
         //Pad the state up to the length of the beliefs
 #pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state) schedule(static)
         for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back()))); ++mask) {
@@ -122,8 +121,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
             }
 
 #pragma omp critical
-            generated_states.push_back(converted_state);
-
+            generated_states.emplace_back(converted_state);
         }
     }
 
