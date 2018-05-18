@@ -118,10 +118,14 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
     std::vector<std::vector<bool>> generated_states;
 
     for (const auto& clause : output_states) {
-        std::vector<bool> converted_state{clause.size(), false, std::allocator<int32_t>()};
+        std::vector<bool> converted_state{belief_length, false, std::allocator<int32_t>()};
 
         for (const auto term : clause) {
             converted_state[std::abs(term) - 1] = (term > 0);
+        }
+        //Pad the state up to the length of the beliefs
+        if (converted_state.size() < belief_length) {
+            converted_state.insert(converted_state.end(), belief_length - converted_state.size(), false);
         }
 
         generated_states.emplace_back(std::move(converted_state));
