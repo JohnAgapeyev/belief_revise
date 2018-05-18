@@ -107,10 +107,9 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         }
 
         //Pad the state up to the length of the beliefs
-#pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state)
+#pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state) schedule(static)
         for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back()) + 1)); ++mask) {
             std::bitset<64> bs{mask};
-
 
             //Add the bits to the end of the state
             for (unsigned long i = std::abs(clause.back()); i < belief_length; ++i) {
@@ -133,22 +132,24 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 //Caluclate the hamming distance between a state and the set of beliefs
 //This could probably be an std::algorithm
 unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) noexcept {
-    unsigned long min = ULONG_MAX;
+    unsigned long min_dist = ULONG_MAX;
 
-    for (const auto& b : belief_set) {
+    //for (const auto& b : belief_set) {
+#pragma omp parallel for reduction(min: min_dist) schedule(static)
+    for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
+        const auto& b = *it;
         assert(state.size() == b.size());
 
         unsigned long count = 0;
 
+#pragma omp simd
         for (unsigned long i = 0; i < b.size(); ++i) {
             count += b[i] ^ state[i];
         }
-        if (count < min) {
-            min = count;
-        }
+        min_dist = std::min(min_dist, count);
     }
 
-    return min;
+    return min_dist;
 }
 
 void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept {
@@ -162,16 +163,21 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
 
     std::vector<std::vector<bool>> revised_beliefs;
 
-    for (const auto& state : formula_states) {
-        if (std::find(original_beliefs.cbegin(), original_beliefs.cend(), state) != original_beliefs.cend()) {
-            revised_beliefs.push_back(state);
-        }
-    }
+    std::set_intersection(formula_states.cbegin(), formula_states.cend(), original_beliefs.cbegin(), original_beliefs.cend(), std::back_inserter(revised_beliefs));
+
     if (revised_beliefs.empty()) {
         //Calculate distances and add stuff that way
+        unsigned long i = 0;
         std::multimap<unsigned long, std::vector<bool>> distance_map;
-        for (const auto& state : formula_states) {
-            distance_map.emplace(state_difference(state, original_beliefs), state);
+        //for (const auto& state : formula_states) {
+#pragma omp parallel for schedule(static)
+        for (auto it = formula_states.cbegin(); it < formula_states.cend(); ++it) {
+            const auto& state = *it;
+            const auto diff = state_difference(state, original_beliefs);
+#pragma omp critical
+            distance_map.emplace(diff, state);
+            //distance_map.emplace(state_difference(state, original_beliefs), state);
+            std::cout << "Finished state " << i++ << "\n";
         }
 
         //Since no element is contained inside the original beliefs, no distance will be zero
