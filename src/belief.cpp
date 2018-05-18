@@ -17,6 +17,22 @@
 #include <fcntl.h>
 #include "belief.h"
 
+static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
+    for (const auto& clause : clause_list) {
+        bool term_false = true;
+        for (const auto term : clause) {
+            if (state[std::abs(term) - 1] != (term < 0)) {
+                term_false = false;
+                break;
+            }
+        }
+        if (term_false) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool satisfies(const std::bitset<64>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
     for (const auto& clause : clause_list) {
         bool term_false = true;
@@ -33,41 +49,7 @@ static bool satisfies(const std::bitset<64>& state, const std::vector<std::vecto
     return true;
 }
 
-//This is an n bit brute force where n is the length of each belief
-//I don't like this, but unless I settle for 1 state per formula, my only option is an ALL-SAT solver
-//Which is pretty damn rare, and I can't find significant information outside of 1 or 2 papers
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
-#if 0
-    //We need to brute force belief_length numbers of variables
-    if (belief_length > 64) {
-        //Undefined behaviour, and frankly, we'll never brute force 64 bits
-        std::cerr << "State generation out of range\n";
-        abort();
-    }
-
-    std::vector<std::vector<bool>> generated_states;
-
-#pragma omp parallel for shared(generated_states, clause_list)
-    for (uint64_t mask = 0; mask < (1ull << (belief_length)); ++mask) {
-        std::bitset<64> bs{mask};
-
-        if (!satisfies(bs, clause_list)) {
-            continue;
-        }
-
-        //Set the good state
-        std::vector<bool> good_state;
-        good_state.reserve(belief_length);
-        for (unsigned long i = 0; i < belief_length; ++i) {
-            good_state.push_back(bs[i]);
-        }
-#pragma omp critical
-        generated_states.emplace_back(std::move(good_state));
-    }
-
-    return generated_states;
-#else
-
     const char *input_filename = ".tmp.input";
     const char *output_filename = ".tmp.output";
 
@@ -118,21 +100,34 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
     std::vector<std::vector<bool>> generated_states;
 
     for (const auto& clause : output_states) {
-        std::vector<bool> converted_state{belief_length, false, std::allocator<int32_t>()};
+        std::vector<bool> converted_state{belief_length, false, std::allocator<bool>()};
 
         for (const auto term : clause) {
             converted_state[std::abs(term) - 1] = (term > 0);
         }
-        //Pad the state up to the length of the beliefs
-        if (converted_state.size() < belief_length) {
-            converted_state.insert(converted_state.end(), belief_length - converted_state.size(), false);
-        }
 
-        generated_states.emplace_back(std::move(converted_state));
+        //Pad the state up to the length of the beliefs
+#pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state)
+        for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back()) + 1)); ++mask) {
+            std::bitset<64> bs{mask};
+
+
+            //Add the bits to the end of the state
+            for (unsigned long i = std::abs(clause.back()); i < belief_length; ++i) {
+                converted_state[i] = bs[i - std::abs(clause.back())];
+            }
+
+            if (!satisfies(converted_state, clause_list)) {
+                continue;
+            }
+
+#pragma omp critical
+            generated_states.push_back(converted_state);
+
+        }
     }
 
     return generated_states;
-#endif
 }
 
 //Caluclate the hamming distance between a state and the set of beliefs
