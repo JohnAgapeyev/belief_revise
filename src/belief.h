@@ -7,6 +7,6 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 
 unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) noexcept;
 
-void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept;
+void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept;
 
 #endif

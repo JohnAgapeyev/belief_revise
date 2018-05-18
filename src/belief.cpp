@@ -184,8 +184,8 @@ unsigned long state_difference(const std::bitset<512>& state, const std::vector<
     return min_dist;
 }
 
-void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept {
-    const auto formula_states = generate_states(formula, original_beliefs.front().size());
+void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept {
+    auto formula_states = generate_states(formula, original_beliefs.front().size());
     if (formula_states.empty()) {
         std::cerr << "Formula is unsatisfiable\n";
         exit(EXIT_FAILURE);
@@ -195,14 +195,23 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
 
     std::vector<std::vector<bool>> revised_beliefs;
 
+    if (!std::is_sorted(formula_states.begin(), formula_states.end())) {
+        std::sort(formula_states.begin(), formula_states.end());
+    }
+    if (!std::is_sorted(original_beliefs.begin(), original_beliefs.end())) {
+        std::sort(original_beliefs.begin(), original_beliefs.end());
+    }
+
+    std::cout << "Done sorting\n";
+
     std::set_intersection(formula_states.cbegin(), formula_states.cend(), original_beliefs.cbegin(), original_beliefs.cend(), std::back_inserter(revised_beliefs));
+
+    std::cout << "Done intersection\n";
 
     if (revised_beliefs.empty()) {
         //Calculate distances and add stuff that way
         unsigned long i = 0;
         std::multimap<unsigned long, std::vector<bool>> distance_map;
-
-
 
         //512 bits because that is infeasible to compute
         //Could do 256, but theoretically, I might be able to do that
@@ -210,21 +219,33 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
         std::vector<std::bitset<512>> belief_bits;
 
         formula_bits.reserve(formula_states.size());
+        formula_bits.assign(formula_states.size(), {});
         belief_bits.reserve(original_beliefs.size());
 
-        for (const auto& state : formula_states) {
-            std::bitset<512> bs;
-            for (unsigned int i = 0; i < 512; ++i) {
-                bs[i] = (i < state.size()) ? state[i] : false;
+        //for (const auto& state : formula_states) {
+#pragma omp parallel shared(formula_bits, belief_bits)
+        {
+#pragma omp for schedule(static) nowait
+            for (auto it = formula_states.cbegin(); it < formula_states.cend(); ++it) {
+                const auto& state = *it;
+                std::bitset<512> bs;
+                for (unsigned int i = 0; i < 512; ++i) {
+                    bs[i] = (i < state.size()) ? state[i] : false;
+                }
+#pragma omp critical(form)
+                formula_bits[formula_bits.size() - std::distance(it, formula_states.cend())] = std::move(bs);
             }
-            formula_bits.emplace_back(std::move(bs));
-        }
-        for (const auto& state : original_beliefs) {
-            std::bitset<512> bs;
-            for (unsigned int i = 0; i < 512; ++i) {
-                bs[i] = (i < state.size()) ? state[i] : false;
+            //for (const auto& state : original_beliefs) {
+#pragma omp for schedule(static) nowait
+            for (auto it = original_beliefs.cbegin(); it < original_beliefs.cend(); ++it) {
+                const auto& state = *it;
+                std::bitset<512> bs;
+                for (unsigned int i = 0; i < 512; ++i) {
+                    bs[i] = (i < state.size()) ? state[i] : false;
+                }
+#pragma omp critical(bell)
+                belief_bits.emplace_back(std::move(bs));
             }
-            belief_bits.emplace_back(std::move(bs));
         }
 
         std::cout << "Done conversion\n";
@@ -232,37 +253,23 @@ void revise_beliefs(const std::vector<std::vector<bool>>& original_beliefs, cons
         std::chrono::high_resolution_clock t;
 
         //for (const auto& state : formula_bits) {
-        for (unsigned long i = 0; i < formula_bits.size(); ++i) {
+        for (unsigned int i = 0; i < formula_states.size(); ++i) {
+#if 0
+            std::bitset<512> bs;
+            for (unsigned int j = 0; j < 512; ++j) {
+                bs[j] = (j < formula_states[i].size()) ? formula_states[i][j] : false;
+            }
+            if (formula_bits[i] != bs) {
+                std::cout << "BAD DATA\n";
+                std::cout << formula_bits[i] << "\n" << bs << "\n";
+            }
+#endif
             const auto start = t.now();
             distance_map.emplace(state_difference(formula_bits[i], belief_bits), formula_states[i]);
 
             const auto end = t.now();
             //std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
         }
-
-
-
-
-
-
-
-
-
-
-
-#if 0
-        for (const auto& state : formula_states) {
-            const auto start = t.now();
-            const auto diff = state_difference(state, original_beliefs);
-            distance_map.emplace(state_difference(state, original_beliefs), state);
-            //elements.emplace_back(state_difference(state, original_beliefs), state);
-
-            const auto end = t.now();
-            std::cout << "Finished state " << i++ << "\n";
-            std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
-        }
-        //distance_map.insert(elements.begin(), elements.end());
-#endif
 
         //Since no element is contained inside the original beliefs, no distance will be zero
         const auto min_dist = distance_map.upper_bound(0)->first;
