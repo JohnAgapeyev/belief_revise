@@ -213,33 +213,27 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
         //512 bits because that is infeasible to compute
         //Could do 256, but theoretically, I might be able to do that
-        std::vector<std::bitset<512>> formula_bits;
+        std::vector<std::bitset<512>> formula_bits{formula_states.size(), {}, std::allocator<std::bitset<512>>()};
         std::vector<std::bitset<512>> belief_bits;
 
-        formula_bits.reserve(formula_states.size());
-        formula_bits.assign(formula_states.size(), {});
         belief_bits.reserve(original_beliefs.size());
 
-        //for (const auto& state : formula_states) {
 #pragma omp parallel shared(formula_bits, belief_bits)
         {
 #pragma omp for schedule(static) nowait
             for (auto it = formula_states.cbegin(); it < formula_states.cend(); ++it) {
-                const auto& state = *it;
                 std::bitset<512> bs;
                 for (unsigned int i = 0; i < 512; ++i) {
-                    bs[i] = (i < state.size()) ? state[i] : false;
+                    bs[i] = (i < it->size()) ? (*it)[i] : false;
                 }
 #pragma omp critical(form)
                 formula_bits[formula_bits.size() - std::distance(it, formula_states.cend())] = std::move(bs);
             }
-            //for (const auto& state : original_beliefs) {
 #pragma omp for schedule(static) nowait
             for (auto it = original_beliefs.cbegin(); it < original_beliefs.cend(); ++it) {
-                const auto& state = *it;
                 std::bitset<512> bs;
                 for (unsigned int i = 0; i < 512; ++i) {
-                    bs[i] = (i < state.size()) ? state[i] : false;
+                    bs[i] = (i < it->size()) ? (*it)[i] : false;
                 }
 #pragma omp critical(bell)
                 belief_bits.emplace_back(std::move(bs));
@@ -248,25 +242,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
         std::cout << "Done conversion\n";
 
-        std::chrono::high_resolution_clock t;
-
-        //for (const auto& state : formula_bits) {
         for (unsigned int i = 0; i < formula_states.size(); ++i) {
-#if 0
-            std::bitset<512> bs;
-            for (unsigned int j = 0; j < 512; ++j) {
-                bs[j] = (j < formula_states[i].size()) ? formula_states[i][j] : false;
-            }
-            if (formula_bits[i] != bs) {
-                std::cout << "BAD DATA\n";
-                std::cout << formula_bits[i] << "\n" << bs << "\n";
-            }
-#endif
-            const auto start = t.now();
             distance_map.emplace(state_difference(formula_bits[i], belief_bits), formula_states[i]);
-
-            const auto end = t.now();
-            //std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
         }
 
         //Since no element is contained inside the original beliefs, no distance will be zero
