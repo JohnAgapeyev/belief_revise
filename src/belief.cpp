@@ -133,26 +133,18 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
-    //for (const auto& b : belief_set) {
 #pragma omp parallel for reduction(min: min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         const auto& b = *it;
         assert(state.size() == b.size());
-        std::chrono::high_resolution_clock t;
 
         unsigned long count = 0;
-
-        const auto start = t.now();
 
 #pragma omp simd
         for (unsigned long i = 0; i < b.size(); ++i) {
             count += b[i] ^ state[i];
         }
         min_dist = std::min(min_dist, count);
-
-        const auto end = t.now();
-
-        //std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
     }
 
     return min_dist;
@@ -161,22 +153,11 @@ unsigned long state_difference(const std::vector<bool>& state, const std::vector
 unsigned long state_difference(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
-    //for (const auto& b : belief_set) {
 #pragma omp parallel for reduction(min: min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         const auto& b = *it;
         assert(state.size() == b.size());
-        std::chrono::high_resolution_clock t;
-
-        unsigned long count = 0;
-
-        const auto start = t.now();
-
         min_dist = std::min(min_dist, (state ^ b).count());
-
-        const auto end = t.now();
-
-        //std::cout << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << "\n";
     }
 
     return min_dist;
