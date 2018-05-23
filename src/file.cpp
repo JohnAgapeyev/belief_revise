@@ -21,7 +21,9 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
         return {};
     }
 
-    std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> output{};
+    std::vector<std::vector<int32_t>> output_clauses;
+    std::vector<std::vector<bool>> output_bits;
+
     bool problem_found = false;
     type_format input_type;
 
@@ -69,7 +71,6 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
             case type_format::DNF:
                 {
                     std::vector<int32_t> clause_tokens;
-                    output = std::vector<decltype(clause_tokens)>{};
 
                     std::istringstream iss{std::move(line)};
 
@@ -82,15 +83,13 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
                     if (clause_tokens.empty()) {
                         continue;
                     }
-
-                    std::get<std::vector<decltype(clause_tokens)>>(output).emplace_back(std::move(clause_tokens));
+                    output_clauses.emplace_back(std::move(clause_tokens));
                 }
                 break;
             case type_format::RAW:
                 {
                     unsigned char c;
                     std::vector<bool> state;
-                    output = std::vector<decltype(state)>{};
 
                     std::istringstream iss{std::move(line)};
 
@@ -118,9 +117,7 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
                     if (state.empty()) {
                         continue;
                     }
-
-                    //Store the bit state into the variant
-                    std::get<std::vector<decltype(state)>>(output).emplace_back(std::move(state));
+                    output_bits.emplace_back(std::move(state));
                 }
                 break;
             default:
@@ -129,13 +126,19 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
         }
     }
 
-    if ((std::holds_alternative<std::vector<std::vector<int32_t>>>(output) && std::get<std::vector<std::vector<int32_t>>>(output).empty())
-            || (std::holds_alternative<std::vector<std::vector<bool>>>(output) && std::get<std::vector<std::vector<bool>>>(output).empty())) {
-        std::cerr << "File must not be empty\n";
-        exit(EXIT_FAILURE);
+    if (input_type == type_format::RAW) {
+        if (output_bits.empty()) {
+            std::cerr << "File must not be empty\n";
+            exit(EXIT_FAILURE);
+        }
+        return {input_type, output_bits};
+    } else {
+        if (output_clauses.empty()) {
+            std::cerr << "File must not be empty\n";
+            exit(EXIT_FAILURE);
+        }
+        return {input_type, output_clauses};
     }
-
-    return {input_type, output};
 }
 
 //This applies the distributive property to convert between DNF and CNF DIMACS formats
