@@ -15,6 +15,7 @@ set(BELIEF_REV_SOURCES
     src/main.cpp
     src/file.cpp
     src/belief.cpp
+    src/interactive.cpp
 )
 
 add_custom_target(minisat_all COMMAND make r

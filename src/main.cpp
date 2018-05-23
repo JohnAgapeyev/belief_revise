@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include "file.h"
 #include "belief.h"
+#include "interactive.h"
 
 static struct option long_options[] = {
     {"belief_set",  required_argument, 0, 'b'},
@@ -57,6 +58,7 @@ int main(int argc, char **argv) {
     //Not currently supporting interactive mode yet
     if (is_interactive) {
         std::cout << "Entering interactive mode\n";
+        run_interactive_mode();
         return EXIT_SUCCESS;
     }
     if (!belief_path || !formula_path) {
