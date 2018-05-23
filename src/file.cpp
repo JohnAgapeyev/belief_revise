@@ -11,7 +11,7 @@
 #include <cassert>
 #include "file.h"
 
-std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) {
+std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept {
     std::ifstream file{path};
 
     if (!file) {
@@ -95,7 +95,7 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> rea
 }
 
 //This applies the distributive property to convert between DNF and CNF DIMACS formats
-std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::vector<int32_t>>& normal_clauses) {
+std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::vector<int32_t>>& normal_clauses) noexcept {
     std::vector<std::vector<int32_t>> result;
 
     assert(normal_clauses.size() >= 2);
@@ -127,3 +127,69 @@ std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::ve
         return result;
     }
 }
+
+std::pair<type_format, std::vector<std::vector<int32_t>>> read_dimacs_data(std::ifstream& ifs) noexcept {
+    std::vector<std::vector<int32_t>> clause_list;
+    std::vector<std::vector<bool>> belief_state;
+
+    bool problem_found = false;
+    type_format input_type;
+
+    for (std::string line; std::getline(ifs, line);) {
+        if (line.empty()) {
+            continue;
+        }
+        //Ignore comments
+        if (line.front() == 'c') {
+            continue;
+        }
+        //Found problem line
+        if (!problem_found && line.front() == 'p') {
+            std::istringstream iss{std::move(line)};
+            std::string dummy;
+            std::string format;
+
+            //Ignore the p token for the problem line
+            iss >> dummy;
+            iss >> format;
+
+            if (format.find("cnf") != std::string::npos) {
+                input_type = type_format::CNF;
+            } else if (format.find("dnf") != std::string::npos) {
+                input_type = type_format::DNF;
+            } else if (format.find("raw") != std::string::npos) {
+                input_type = type_format::RAW;
+            } else {
+                //Unknown data format
+                std::cerr << "Unknown data format\n";
+                return {};
+            }
+            problem_found = true;
+            continue;
+        }
+        //The first non-comment line is not a problem statement, return error
+        if (!problem_found) {
+            std::cerr << "First non-comment line was not a problem statement\n";
+            return {};
+        }
+
+        std::vector<int32_t> clause_tokens;
+
+        std::istringstream iss{std::move(line)};
+
+        clause_tokens.assign(std::istream_iterator<int32_t>(iss),
+                std::istream_iterator<int32_t>());
+        clause_tokens.erase(std::remove(clause_tokens.begin(), clause_tokens.end(), 0),
+                clause_tokens.end());
+        clause_tokens.shrink_to_fit();
+
+        if (clause_tokens.empty()) {
+            continue;
+        }
+
+        clause_list.emplace_back(std::move(clause_tokens));
+    }
+
+    return {input_type, clause_list};
+}
+

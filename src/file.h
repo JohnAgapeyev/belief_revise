@@ -4,12 +4,18 @@
 #include <vector>
 #include <cstdint>
 #include <utility>
+#include <fstream>
 
-std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path);
+enum class type_format {
+    CNF,
+    DNF,
+    RAW
+};
 
-//This will be implemented later
-std::vector<std::vector<int32_t>> read_logic_formula(const char *path);
+std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept;
 
-std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::vector<int32_t>>& normal_clauses);
+std::pair<type_format, std::vector<std::vector<int32_t>>> read_dimacs_data(std::ifstream& ifs) noexcept;
+
+std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::vector<int32_t>>& normal_clauses) noexcept;
 
 #endif
