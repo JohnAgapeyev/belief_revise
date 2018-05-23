@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <utility>
 #include <fstream>
+#include <variant>
 
 enum class type_format {
     CNF,
@@ -12,7 +13,7 @@ enum class type_format {
     RAW
 };
 
-std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept;
+std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept;
 
 std::pair<type_format, std::vector<std::vector<int32_t>>> read_dimacs_data(std::ifstream& ifs) noexcept;
 

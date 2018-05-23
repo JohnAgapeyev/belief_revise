@@ -9,9 +9,10 @@
 #include <cstring>
 #include <cctype>
 #include <cassert>
+#include <variant>
 #include "file.h"
 
-std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept {
+std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept {
     std::ifstream file{path};
 
     if (!file) {
@@ -20,78 +21,130 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> rea
         return {};
     }
 
-    std::vector<std::vector<int32_t>> clause_list;
-    std::vector<std::vector<bool>> belief_state;
-
-    bool is_formula = false;
+    std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> output{};
+    bool problem_found = false;
+    type_format input_type;
 
     for (std::string line; std::getline(file, line);) {
+        //Ignore empty lines
+        if (line.empty()) {
+            continue;
+        }
         //Ignore comment lines
-        if (line.front() == '#') {
+        if (line.front() == 'c') {
             continue;
         }
-        //We've hit the formula delimiter
-        if (tolower(line.front()) == 's') {
-            is_formula = true;
+        //Parse problem line
+        if (line.front() == 'p') {
+            std::istringstream iss{std::move(line)};
+            std::string dummy;
+            std::string format;
+
+            //Ignore the p token for the problem line
+            iss >> dummy;
+            iss >> format;
+
+            if (format.find("cnf") != std::string::npos) {
+                input_type = type_format::CNF;
+            } else if (format.find("dnf") != std::string::npos) {
+                input_type = type_format::DNF;
+            } else if (format.find("raw") != std::string::npos) {
+                input_type = type_format::RAW;
+            } else {
+                //Unknown data format
+                std::cerr << "Unknown data format\n";
+                return {};
+            }
+            problem_found = true;
             continue;
         }
-        if (!is_formula) {
-            unsigned char c;
-            std::vector<bool> state;
+        //The first non-comment line is not a problem statement, return error
+        if (!problem_found) {
+            std::cerr << "First non-comment line was not a problem statement\n";
+            return {};
+        }
+        switch(input_type) {
+            case type_format::CNF:
+                [[fallthrough]];
+            case type_format::DNF:
+                {
+                    std::vector<int32_t> clause_tokens;
+                    output = std::vector<decltype(clause_tokens)>{};
 
-            std::istringstream iss{std::move(line)};
+                    std::istringstream iss{std::move(line)};
 
-            for (;;) {
-                iss >> c;
-                if (iss.bad() || (!isxdigit(c) && !iscntrl(c) && !isspace(c))) {
-                    std::cerr << "Failed to parse hexadecimal state\n";
-                    return {};
+                    clause_tokens.assign(std::istream_iterator<int32_t>(iss),
+                            std::istream_iterator<int32_t>());
+                    clause_tokens.erase(std::remove(clause_tokens.begin(), clause_tokens.end(), 0),
+                            clause_tokens.end());
+                    clause_tokens.shrink_to_fit();
+
+                    if (clause_tokens.empty()) {
+                        continue;
+                    }
+
+                    //clause_list.emplace_back(std::move(clause_tokens));
+                    //auto& o = std::get<std::vector<std::vector<int32_t>>>(output);
+                    //o.emplace_back(std::move(clause_tokens));
+                    std::get<std::vector<decltype(clause_tokens)>>(output).emplace_back(std::move(clause_tokens));
                 }
-                if (iscntrl(c) || isspace(c) || iss.eof()) {
-                    break;
+                break;
+            case type_format::RAW:
+                {
+                    unsigned char c;
+                    std::vector<bool> state;
+                    output = std::vector<decltype(state)>{};
+
+                    std::istringstream iss{std::move(line)};
+
+                    for (;;) {
+                        iss >> c;
+                        if (iss.bad() || (!isxdigit(c) && !iscntrl(c) && !isspace(c))) {
+                            std::cerr << "Failed to parse hexadecimal state\n";
+                            return {};
+                        }
+                        if (iscntrl(c) || isspace(c) || iss.eof()) {
+                            break;
+                        }
+
+                        //Need to convert char for ternery to work
+                        c = toupper(c);
+                        int hex_value = (c >= 'A') ? (c - 'A' + 10) : (c - '0');
+
+                        //Push the bit values in big-endian order
+                        state.push_back(hex_value & 8);
+                        state.push_back(hex_value & 4);
+                        state.push_back(hex_value & 2);
+                        state.push_back(hex_value & 1);
+                    }
+
+                    if (state.empty()) {
+                        continue;
+                    }
+
+                    //Store the bit state into the variant
+                    std::get<std::vector<decltype(state)>>(output).emplace_back(std::move(state));
+
+                    //belief_state.emplace_back(std::move(state));
                 }
-
-                //Need to convert char for ternery to work
-                c = toupper(c);
-                int hex_value = (c >= 'A') ? (c - 'A' + 10) : (c - '0');
-
-                //Push the bit values in big-endian order
-                state.push_back(hex_value & 8);
-                state.push_back(hex_value & 4);
-                state.push_back(hex_value & 2);
-                state.push_back(hex_value & 1);
-            }
-
-            if (state.empty()) {
-                continue;
-            }
-
-            belief_state.emplace_back(std::move(state));
-        } else {
-            std::vector<int32_t> clause_tokens;
-
-            std::istringstream iss{std::move(line)};
-
-            clause_tokens.assign(std::istream_iterator<int32_t>(iss),
-                    std::istream_iterator<int32_t>());
-            clause_tokens.erase(std::remove(clause_tokens.begin(), clause_tokens.end(), 0),
-                    clause_tokens.end());
-            clause_tokens.shrink_to_fit();
-
-            if (clause_tokens.empty()) {
-                continue;
-            }
-
-            clause_list.emplace_back(std::move(clause_tokens));
+                break;
+            default:
+                std::cerr << "Unknown data format enum value\n";
+                return {};
         }
     }
 
-    if (belief_state.empty() || clause_list.empty()) {
-        std::cerr << "File must contain both an initial belief state, and a formula\n";
-        return {};
+    //if (belief_state.empty() || clause_list.empty()) {
+    //if (std::get<output.index()>(output).empty()) {
+    if ((std::holds_alternative<std::vector<std::vector<int32_t>>>(output) && std::get<std::vector<std::vector<int32_t>>>(output).empty())
+            || (std::holds_alternative<std::vector<std::vector<bool>>>(output) && std::get<std::vector<std::vector<bool>>>(output).empty())) {
+
+        //std::cerr << "File must contain both an initial belief state, and a formula\n";
+        std::cerr << "File must not be empty\n";
+        exit(EXIT_FAILURE);
     }
 
-    return {belief_state, clause_list};
+    return output;
 }
 
 //This applies the distributive property to convert between DNF and CNF DIMACS formats
@@ -128,6 +181,7 @@ std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::ve
     }
 }
 
+//Parses DIMACS formatted data for CNF/DNF equations
 std::pair<type_format, std::vector<std::vector<int32_t>>> read_dimacs_data(std::ifstream& ifs) noexcept {
     std::vector<std::vector<int32_t>> clause_list;
     std::vector<std::vector<bool>> belief_state;

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstdint>
+#include <variant>
 #include "file.h"
 #include "belief.h"
 
@@ -10,13 +11,15 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
     auto data = read_file(argv[1]);
-    if (data.first.empty() || data.second.empty()) {
+    bool is_clause_list = std::holds_alternative<std::vector<std::vector<int32_t>>>(data);
+
+    if (is_clause_list && std::get<std::vector<std::vector<int32_t>>>(data).empty()) {
         std::cerr << "Error parsing input file\n";
         return EXIT_FAILURE;
     }
 
     std::cout << "Initial belief states:\n";
-    for (const auto& state : data.first) {
+    for (const auto& state : std::get<std::vector<std::vector<int32_t>>>(data)) {
         for (unsigned long i = 0; i < state.size(); ++i) {
             std::cout << state[i];
         }
@@ -24,14 +27,14 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Revision formula:\n";
-    for (const auto& clause : data.second) {
+    for (const auto& clause : std::get<std::vector<std::vector<int32_t>>>(data)) {
         for (const auto term : clause) {
             std::cout << term << " ";
         }
         std::cout << "\n";
     }
 
-    revise_beliefs(data.first, data.second);
+    //revise_beliefs(data.first, data.second);
 
     return EXIT_SUCCESS;
 }
