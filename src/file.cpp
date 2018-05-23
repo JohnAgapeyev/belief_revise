@@ -200,8 +200,8 @@ std::vector<std::vector<int32_t>> convert_raw(const std::vector<std::vector<bool
 //So padding will be necessary, unfortunately
 //This will greatly slow things down if the examples are simple
 std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<int32_t>>& clause_list) noexcept {
-    std::vector<std::vector<bool>> output;
-    output.reserve(clause_list.size());
+    std::unordered_set<std::vector<bool>> output_set;
+    output_set.reserve(clause_list.size());
 
     int32_t variable_count = INT32_MIN;
     for (const auto& clause : clause_list) {
@@ -235,9 +235,11 @@ std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<
                 }
             }
 
-            output.emplace_back(converted_state);
+            output_set.emplace(converted_state);
         }
     }
+
+    std::vector<std::vector<bool>> output{std::make_move_iterator(output_set.begin()), std::make_move_iterator(output_set.end())};
 
     return output;
 }
