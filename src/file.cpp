@@ -12,7 +12,7 @@
 #include <variant>
 #include "file.h"
 
-std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) noexcept {
+std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>>> read_file(const char *path) noexcept {
     std::ifstream file{path};
 
     if (!file) {
@@ -135,7 +135,7 @@ std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> 
         exit(EXIT_FAILURE);
     }
 
-    return output;
+    return {input_type, output};
 }
 
 //This applies the distributive property to convert between DNF and CNF DIMACS formats
@@ -172,69 +172,19 @@ std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::ve
     }
 }
 
-//Parses DIMACS formatted data for CNF/DNF equations
-std::pair<type_format, std::vector<std::vector<int32_t>>> read_dimacs_data(std::ifstream& ifs) noexcept {
-    std::vector<std::vector<int32_t>> clause_list;
-    std::vector<std::vector<bool>> belief_state;
+//Converts the input bits to DNF format - It's a 1-to-1 mapping
+std::vector<std::vector<int32_t>> convert_raw(const std::vector<std::vector<bool>>& input_bits) noexcept {
+    std::vector<std::vector<int32_t>> output;
+    output.reserve(input_bits.size());
 
-    bool problem_found = false;
-    type_format input_type;
+    for (const auto& clause : input_bits) {
+        std::vector<int32_t> converted_form;
 
-    for (std::string line; std::getline(ifs, line);) {
-        if (line.empty()) {
-            continue;
+        for (unsigned long i = 0; i < clause.size(); ++i) {
+            converted_form.push_back((clause[i]) ? i + 1 : -(i + 1));
         }
-        //Ignore comments
-        if (line.front() == 'c') {
-            continue;
-        }
-        //Found problem line
-        if (!problem_found && line.front() == 'p') {
-            std::istringstream iss{std::move(line)};
-            std::string dummy;
-            std::string format;
-
-            //Ignore the p token for the problem line
-            iss >> dummy;
-            iss >> format;
-
-            if (format.find("cnf") != std::string::npos) {
-                input_type = type_format::CNF;
-            } else if (format.find("dnf") != std::string::npos) {
-                input_type = type_format::DNF;
-            } else if (format.find("raw") != std::string::npos) {
-                input_type = type_format::RAW;
-            } else {
-                //Unknown data format
-                std::cerr << "Unknown data format\n";
-                return {};
-            }
-            problem_found = true;
-            continue;
-        }
-        //The first non-comment line is not a problem statement, return error
-        if (!problem_found) {
-            std::cerr << "First non-comment line was not a problem statement\n";
-            return {};
-        }
-
-        std::vector<int32_t> clause_tokens;
-
-        std::istringstream iss{std::move(line)};
-
-        clause_tokens.assign(std::istream_iterator<int32_t>(iss),
-                std::istream_iterator<int32_t>());
-        clause_tokens.erase(std::remove(clause_tokens.begin(), clause_tokens.end(), 0),
-                clause_tokens.end());
-        clause_tokens.shrink_to_fit();
-
-        if (clause_tokens.empty()) {
-            continue;
-        }
-
-        clause_list.emplace_back(std::move(clause_tokens));
+        output.emplace_back(std::move(converted_form));
     }
 
-    return {input_type, clause_list};
+    return output;
 }
-
