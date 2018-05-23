@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <cstdint>
 #include "file.h"
 #include "belief.h"
 

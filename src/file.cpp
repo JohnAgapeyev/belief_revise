@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cctype>
+#include <cassert>
 #include "file.h"
 
 std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> read_file(const char *path) {
@@ -91,4 +92,38 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> rea
     }
 
     return {belief_state, clause_list};
+}
+
+//This applies the distributive property to convert between DNF and CNF DIMACS formats
+std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::vector<int32_t>>& normal_clauses) {
+    std::vector<std::vector<int32_t>> result;
+
+    assert(normal_clauses.size() >= 2);
+
+    if (normal_clauses.size() == 2) {
+        //Handle final case
+        for (const auto& first : normal_clauses.front()) {
+            for (const auto second : normal_clauses[1]) {
+                result.push_back({first, second});
+            }
+        }
+
+        return result;
+    } else {
+        //Get the result excluding the first clause
+        const auto prev_result = convert_normal_forms({std::next(normal_clauses.begin()), normal_clauses.end()});
+        for (const auto term : normal_clauses.front()) {
+            for (const auto& clause : prev_result) {
+                //Add the first level term to the existing conversion
+                std::vector<int32_t> extended_result{clause};
+                extended_result.emplace_back(term);
+                result.emplace_back(std::move(extended_result));
+            }
+        }
+        for (auto& clause : result) {
+            //Sort the result in variable order
+            std::sort(clause.begin(), clause.end(), [](const auto lhs, const auto rhs){return std::abs(lhs) < std::abs(rhs);});
+        }
+        return result;
+    }
 }
