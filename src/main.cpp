@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     std::cout << "Initial belief states:\n";
     for (const auto& state : std::get<std::vector<std::vector<bool>>>(beliefs)) {
         for (unsigned long i = 0; i < state.size(); ++i) {
-            std::cout << state[i] << " ";
+            std::cout << state[i];
         }
         std::cout << "\n";
     }

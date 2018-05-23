@@ -203,10 +203,10 @@ std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<
     std::vector<std::vector<bool>> output;
     output.reserve(clause_list.size());
 
-    int32_t variable_count = INT32_MAX;
+    int32_t variable_count = INT32_MIN;
     for (const auto& clause : clause_list) {
         for (const auto term : clause) {
-            variable_count = std::min(variable_count, std::abs(term));
+            variable_count = std::max(variable_count, std::abs(term));
         }
     }
 
@@ -221,19 +221,11 @@ std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<
             //Fill in the bits set by the clause
             converted_state[std::abs(term) - 1] = (term > 0);
         }
-        //int32_t clause_max = std::abs(*std::max_element(clause.cbegin(), clause.cend(), [](const auto& lhs, const auto& rhs){return std::abs(lhs) < std::abs(rhs);}));
         int32_t clause_max = variable_set.size();
 
         //Brute force pad the unused bits
         for (uint64_t mask = 0; mask < (1ull << (variable_count - clause_max)); ++mask) {
             std::bitset<64> bs{mask};
-
-#if 0
-            //Add the bits to the end of the state
-            for (unsigned long i = clause_max; i < variable_count; ++i) {
-                converted_state[i] = bs[i - clause_max];
-            }
-#endif
 
             unsigned long pos = 0;
             for (int32_t i = 0; i < variable_count; ++i) {
@@ -246,20 +238,6 @@ std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<
             output.emplace_back(converted_state);
         }
     }
-
-
-
-
-#if 0
-    for (const auto& clause : clause_list) {
-        std::vector<bool> converted_form;
-
-        for (const auto term : clause) {
-            converted_form.push_back((clause[i]) ? i + 1 : -(i + 1));
-        }
-        output.emplace_back(std::move(converted_form));
-    }
-#endif
 
     return output;
 }
