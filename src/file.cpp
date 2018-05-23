@@ -83,9 +83,6 @@ std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> 
                         continue;
                     }
 
-                    //clause_list.emplace_back(std::move(clause_tokens));
-                    //auto& o = std::get<std::vector<std::vector<int32_t>>>(output);
-                    //o.emplace_back(std::move(clause_tokens));
                     std::get<std::vector<decltype(clause_tokens)>>(output).emplace_back(std::move(clause_tokens));
                 }
                 break;
@@ -124,8 +121,6 @@ std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> 
 
                     //Store the bit state into the variant
                     std::get<std::vector<decltype(state)>>(output).emplace_back(std::move(state));
-
-                    //belief_state.emplace_back(std::move(state));
                 }
                 break;
             default:
@@ -134,12 +129,8 @@ std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> 
         }
     }
 
-    //if (belief_state.empty() || clause_list.empty()) {
-    //if (std::get<output.index()>(output).empty()) {
     if ((std::holds_alternative<std::vector<std::vector<int32_t>>>(output) && std::get<std::vector<std::vector<int32_t>>>(output).empty())
             || (std::holds_alternative<std::vector<std::vector<bool>>>(output) && std::get<std::vector<std::vector<bool>>>(output).empty())) {
-
-        //std::cerr << "File must contain both an initial belief state, and a formula\n";
         std::cerr << "File must not be empty\n";
         exit(EXIT_FAILURE);
     }
