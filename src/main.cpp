@@ -79,15 +79,18 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (belief_format == type_format::RAW) {
-        beliefs = convert_raw(std::get<std::vector<std::vector<bool>>>(beliefs));
+    if (belief_format != type_format::RAW) {
+        if (belief_format == type_format::CNF) {
+            beliefs = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(beliefs));
+        }
+        beliefs = convert_dnf_to_raw(std::get<std::vector<std::vector<int32_t>>>(beliefs));
     }
     if (formula_format == type_format::RAW) {
         formula = convert_raw(std::get<std::vector<std::vector<bool>>>(formula));
     }
 
     std::cout << "Initial belief states:\n";
-    for (const auto& state : std::get<std::vector<std::vector<int32_t>>>(beliefs)) {
+    for (const auto& state : std::get<std::vector<std::vector<bool>>>(beliefs)) {
         for (unsigned long i = 0; i < state.size(); ++i) {
             std::cout << state[i] << " ";
         }
