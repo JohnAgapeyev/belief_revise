@@ -81,12 +81,19 @@ int main(int argc, char **argv) {
 
     if (belief_format != type_format::RAW) {
         if (belief_format == type_format::CNF) {
+            //Convert CNF to DNF
             beliefs = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(beliefs));
         }
+        //Convert DNF to raw
         beliefs = convert_dnf_to_raw(std::get<std::vector<std::vector<int32_t>>>(beliefs));
     }
-    if (formula_format == type_format::RAW) {
-        formula = convert_raw(std::get<std::vector<std::vector<bool>>>(formula));
+    if (formula_format != type_format::CNF) {
+        if (belief_format == type_format::RAW) {
+            //Get DNF from raw data
+            formula = convert_raw(std::get<std::vector<std::vector<bool>>>(formula));
+        }
+        //Convert that DNF into CNF
+        formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
     }
 
     std::cout << "Initial belief states:\n";
