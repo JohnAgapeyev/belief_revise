@@ -204,38 +204,43 @@ std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<
     output_set.reserve(clause_list.size());
 
     int32_t variable_count = INT32_MIN;
-    for (const auto& clause : clause_list) {
-        for (const auto term : clause) {
-            variable_count = std::max(variable_count, std::abs(term));
-        }
-    }
-
-    for (const auto& clause : clause_list) {
-        //Fill the converted state to have variable_count falses
-        std::vector<bool> converted_state{static_cast<unsigned long>(variable_count), false, std::allocator<bool>()};
-
-        std::unordered_set<int32_t> variable_set;
-        for (const auto term : clause) {
-            variable_set.emplace(std::abs(term) - 1);
-
-            //Fill in the bits set by the clause
-            converted_state[std::abs(term) - 1] = (term > 0);
-        }
-        int32_t clause_max = variable_set.size();
-
-        //Brute force pad the unused bits
-        for (uint64_t mask = 0; mask < (1ull << (variable_count - clause_max)); ++mask) {
-            std::bitset<64> bs{mask};
-
-            unsigned long pos = 0;
-            for (int32_t i = 0; i < variable_count; ++i) {
-                //Variable at position i is not set by the clause
-                if (!variable_set.count(i)) {
-                    converted_state[i] = bs[pos++];
-                }
+#pragma omp parallel shared(output_set, variable_count)
+    {
+#pragma omp for schedule(static) reduction(max: variable_count) nowait
+        for (auto it = clause_list.cbegin(); it < clause_list.cend(); ++it) {
+            for (auto it2 = it->cbegin(); it2 < it->cend(); ++it2) {
+                variable_count = std::max(variable_count, std::abs(*it2));
             }
+        }
 
-            output_set.emplace(converted_state);
+#pragma omp for schedule(static) nowait
+        for (auto it = clause_list.cbegin(); it < clause_list.cend(); ++it) {
+            //Fill the converted state to have variable_count falses
+            std::vector<bool> converted_state{static_cast<unsigned long>(variable_count), false, std::allocator<bool>()};
+
+            std::unordered_set<int32_t> variable_set;
+            for (const auto term : *it) {
+                variable_set.emplace(std::abs(term) - 1);
+
+                //Fill in the bits set by the clause
+                converted_state[std::abs(term) - 1] = (term > 0);
+            }
+            int32_t clause_max = variable_set.size();
+
+            //Brute force pad the unused bits
+            for (uint64_t mask = 0; mask < (1ull << (variable_count - clause_max)); ++mask) {
+                std::bitset<64> bs{mask};
+
+                unsigned long pos = 0;
+                for (int32_t i = 0; i < variable_count; ++i) {
+                    //Variable at position i is not set by the clause
+                    if (!variable_set.count(i)) {
+                        converted_state[i] = bs[pos++];
+                    }
+                }
+#pragma omp critical
+                output_set.emplace(converted_state);
+            }
         }
     }
 

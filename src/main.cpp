@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
         std::cout << "\n";
     }
 
-    //revise_beliefs(data.first, data.second);
+    revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula));
 
     return EXIT_SUCCESS;
 }
