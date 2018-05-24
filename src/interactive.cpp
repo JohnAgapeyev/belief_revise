@@ -91,7 +91,33 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run
 
     tokens = std::vector<std::string>{std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{}};
 
-    const auto formula_cnf = convert_normal_forms(get_dnf_from_equation(tokens));
+    const auto max_variable = get_max_variable_num(tokens);
+
+    //Fill the converted state to have variable_count falses
+    std::vector<bool> converted_state{static_cast<unsigned long>(max_variable), false, std::allocator<bool>()};
+
+    std::vector<std::vector<int32_t>> formula_cnf;
+
+    for (uint64_t mask = 0; mask < (1ull << max_variable); ++mask) {
+        std::bitset<64> bs{mask};
+
+        for (long i = 0; i < max_variable; ++i) {
+            converted_state[i] = bs[i];
+        }
+
+        if (!evaulate_expression(tokens, converted_state)) {
+            //Convert truth evaluation to CNF format using Product of Sums
+            std::vector<int32_t> cnf_clause;
+            for (long i = 0; i < max_variable; ++i) {
+                int32_t term = i + 1;
+                if (converted_state[i]) {
+                    term *= -1;
+                }
+                cnf_clause.push_back(term);
+            }
+            formula_cnf.emplace_back(std::move(cnf_clause));
+        }
+    }
 
     return {raw_belief_states, formula_cnf};
 }

@@ -58,7 +58,26 @@ int main(int argc, char **argv) {
     //Not currently supporting interactive mode yet
     if (is_interactive) {
         std::cout << "Entering interactive mode\n";
-        run_interactive_mode();
+        auto [beliefs, formula] = run_interactive_mode();
+
+        std::cout << "Initial belief states:\n";
+        for (const auto& state : beliefs) {
+            for (unsigned long i = 0; i < state.size(); ++i) {
+                std::cout << state[i];
+            }
+            std::cout << "\n";
+        }
+
+        std::cout << "Revision formula:\n";
+        for (const auto& clause : formula) {
+            for (const auto term : clause) {
+                std::cout << term << " ";
+            }
+            std::cout << "\n";
+        }
+
+        revise_beliefs(beliefs, formula);
+
         return EXIT_SUCCESS;
     }
     if (!belief_path || !formula_path) {
