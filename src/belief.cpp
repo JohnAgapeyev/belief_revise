@@ -51,6 +51,16 @@ static bool satisfies(const std::bitset<64>& state, const std::vector<std::vecto
 }
 
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
+    for (const auto& clause : clause_list) {
+        for (const auto term : clause) {
+            if (std::abs(term) > belief_length) {
+                std::cerr << "Invalid input data\n";
+                std::cerr << "Formula contains more variables than the belief set\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
     const char *input_filename = ".tmp.input";
     const char *output_filename = ".tmp.output";
 
