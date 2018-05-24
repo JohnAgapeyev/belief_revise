@@ -137,6 +137,18 @@ reparse:
         operator_stack.pop();
     }
 
-    return output.str();
+    std::string out_str = output.str();
+
+    if (out_str.empty()) {
+        std::cout << "Equation parser returned empty string\n";
+        return "";
+    }
+
+    //Remove trailing whitespace
+    while(std::isspace(out_str.back())) {
+        out_str.pop_back();
+    }
+
+    return out_str;
 }
 
