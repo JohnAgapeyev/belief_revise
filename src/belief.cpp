@@ -178,6 +178,8 @@ unsigned long state_difference(const std::bitset<512>& state, const std::vector<
 }
 
 //The main revision function
+//Original beliefs must contain equal length bit assignments representing the state of each variable
+//The formula must be in CNF format
 void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept {
     auto formula_states = generate_states(formula, original_beliefs.front().size());
     if (formula_states.empty()) {
