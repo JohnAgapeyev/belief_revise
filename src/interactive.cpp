@@ -25,7 +25,22 @@ bad_equation:
         goto bad_equation;
     }
     if (input.front() == 'h') {
-        std::cout << "Lorem Ipsum Dolor Sit Amet\n";
+        std::cout << "A formula consists of the following tokens:\n";
+        std::cout << "Any positive integer representing a variable - Floating point and negative values, as well as zero are not allowed\n";
+        std::cout << "The following operations are permitted: and, or, not\n";
+        std::cout << "The \"and\" and \"or\" operations are binary and require pre and post arguments\n";
+        std::cout << "Eg. \"3 and 4\" as well as \"1 or 7\" are valid, but \"3 or\" and \"and 3\" are not\n";
+        std::cout << "Unary negation of variables is permitted, but not for complex functions\n";
+        std::cout << "Eg. \"not 4\" is valid, whereas \"not (3 and 4)\" is invalid\n";
+        std::cout << "Evaluation precedence may be explicitly stated using the \'(\' and \')\' characters\n";
+        std::cout << "Parentheses may be nested, with no regard for whitespace or repeated characters\n";
+        std::cout << "Eg. \"((2 and 3) and 4)\", \"((1 and 2))\" and \"(7 or (1 or 3))\" are all valid\n";
+        std::cout << "An example valid input is \"((2 and not 3) or not 4) and (5 or not 7 or (not 9 and 10))\"\n";
+        std::cout << "Please note, the length of each state is implicitly determined by the largest provided variable number\n";
+        std::cout << "Any unused but implied variables will have all possible combinations calculated for logical consistency\n";
+        std::cout << "As such, it is recommended that all input formula use the smallest variable numbers possible in order to reduce computational load\n";
+        std::cout << "Eg. \"1 and 3\" would only create 2 possible states, but \"1 and 101\" would create 2^100 possible states\n";
+        std::cout << std::endl;
         goto bad_equation;
     }
     return input;
