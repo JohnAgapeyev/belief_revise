@@ -1,7 +1,7 @@
 # belief_revise
 This application computes the [Belief Revision](https://en.wikipedia.org/wiki/Belief_revision) operator on a set of initial beliefs, revised based on a given formula.
 
-##Usage:
+## Usage:
 Interactive mode:
 `./bin/belief_rev -i`
 
@@ -11,7 +11,7 @@ File input:
 Usage help:
 `./bin/belief_rev -h`
 
-##Input formats:
+## Input formats:
 Input data can be entered in one of 3 formats:
  - CNF, aka Conjunctive Normal Form
  - DNF, aka Disjunctive Normal Form
@@ -27,7 +27,7 @@ Comments can be added by making the first character of the line 'c'
 CNF and DNF formatted data follow the [DIMACS](http://www.satcompetition.org/2009/format-benchmarks2009.html) file format
 Raw hex requires the entire line contain a valid hex string
 
-##Compilation:
+## Compilation:
 To compile simply run the following commands:
 ```
 cmake .
