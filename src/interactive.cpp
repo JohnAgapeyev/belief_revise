@@ -8,6 +8,7 @@
 #include <iterator>
 #include <bitset>
 #include "interactive.h"
+#include "file.h"
 
 std::string get_user_input() noexcept {
     std::string line;
@@ -15,29 +16,10 @@ std::string get_user_input() noexcept {
     return line;
 }
 
-std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run_interactive_mode() noexcept {
-    std::cout << "Entering initial belief states:\n";
-bad_format:
-    std::cout << "Please select your belief input format:\n";
-    std::cout << "c - Conjunctive Normal Form, aka CNF\n";
-    std::cout << "d - Disjunctive Normal Form, aka DNF\n";
-    std::cout << "[c/d]? ";
-
-    auto input = get_user_input();
-    if (input.empty() || (input.front() != 'c' && input.front() != 'd')) {
-        std::cout << "Invalid selection\n";
-        goto bad_format;
-    }
-
-    if (input.front() == 'c') {
-        std::cout << "You have selected Conjunctive Normal Form, aka CNF\n";
-    } else {
-        std::cout << "You have selected Disjunctive Normal Form, aka DNF\n";
-    }
-
+std::string get_formula_input() noexcept {
 bad_equation:
-    std::cout << "Please enter your belief equation in the selected format or \'h\' to display a help message detailing required formatting rules\n";
-    input = get_user_input();
+    std::cout << "Please enter your equation or \'h\' to display a help message detailing required formatting rules\n";
+    const auto input = get_user_input();
     if (input.empty()) {
         std::cout << "Invalid selection\n";
         goto bad_equation;
@@ -46,18 +28,10 @@ bad_equation:
         std::cout << "Lorem Ipsum Dolor Sit Amet\n";
         goto bad_equation;
     }
+    return input;
+}
 
-    const auto formatted = shunting_yard(input);
-
-    std::cout << formatted << "\n";
-
-    std::stringstream ss{formatted};
-
-    std::vector<std::string> tokens{std::istream_iterator<std::string>{ss},
-                      std::istream_iterator<std::string>{}};
-
-    std::deque<std::string> equation_stack;
-
+int32_t get_max_variable_num(const std::vector<std::string>& tokens) noexcept {
     int32_t max_variable = INT32_MIN;
     for (const auto& str : tokens) {
         int32_t parsed_variable;
@@ -67,9 +41,16 @@ bad_equation:
         }
         max_variable = std::max(max_variable, std::abs(parsed_variable));
     }
+    return max_variable;
+}
+
+std::vector<std::vector<int32_t>> get_dnf_from_equation(const std::vector<std::string>& tokens) noexcept {
+    const auto max_variable = get_max_variable_num(tokens);
 
     //Fill the converted state to have variable_count falses
     std::vector<bool> converted_state{static_cast<unsigned long>(max_variable), false, std::allocator<bool>()};
+
+    std::vector<std::vector<int32_t>> output_dnf;
 
     for (uint64_t mask = 0; mask < (1ull << max_variable); ++mask) {
         std::bitset<64> bs{mask};
@@ -79,22 +60,40 @@ bad_equation:
         }
 
         if (evaulate_expression(tokens, converted_state)) {
-            std::cout << "Assignment was true\n";
+            //Convert truth evaluation to DNF format using Sum of Products
+            std::vector<int32_t> dnf_clause;
             for (long i = 0; i < max_variable; ++i) {
-                std::cout << converted_state[i];
+                int32_t term = i + 1;
+                if (!converted_state[i]) {
+                    term *= -1;
+                }
+                dnf_clause.push_back(term);
             }
-            std::cout << "\n";
-        } else {
-            std::cout << "Assignment was false\n";
-            for (long i = 0; i < max_variable; ++i) {
-                std::cout << converted_state[i];
-            }
-            std::cout << "\n";
+            output_dnf.emplace_back(std::move(dnf_clause));
         }
     }
+    return output_dnf;
+}
 
+std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run_interactive_mode() noexcept {
+    std::cout << "Entering initial belief states:\n";
 
-    return {};
+    std::stringstream ss{shunting_yard(get_formula_input())};
+
+    std::vector<std::string> tokens{std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{}};
+
+    const auto raw_belief_states = convert_dnf_to_raw(get_dnf_from_equation(tokens));
+
+    std::cout << "Initial belief states have been generated\n";
+    std::cout << "Entering revision formula:\n";
+
+    ss = std::stringstream{shunting_yard(get_formula_input())};
+
+    tokens = std::vector<std::string>{std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{}};
+
+    const auto formula_cnf = convert_normal_forms(get_dnf_from_equation(tokens));
+
+    return {raw_belief_states, formula_cnf};
 }
 
 std::string shunting_yard(const std::string& input) noexcept {
