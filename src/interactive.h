@@ -12,5 +12,7 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run
 
 std::string shunting_yard(const std::string& input) noexcept;
 
+bool evaulate_expression(const std::vector<std::string>& tokens, const std::vector<bool>& assignments) noexcept;
+
 #endif
 

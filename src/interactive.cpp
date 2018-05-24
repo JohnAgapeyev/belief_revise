@@ -4,6 +4,9 @@
 #include <deque>
 #include <queue>
 #include <cstdlib>
+#include <unordered_set>
+#include <iterator>
+#include <bitset>
 #include "interactive.h"
 
 std::string get_user_input() noexcept {
@@ -47,6 +50,48 @@ bad_equation:
     const auto formatted = shunting_yard(input);
 
     std::cout << formatted << "\n";
+
+    std::stringstream ss{formatted};
+
+    std::vector<std::string> tokens{std::istream_iterator<std::string>{ss},
+                      std::istream_iterator<std::string>{}};
+
+    std::deque<std::string> equation_stack;
+
+    int32_t max_variable = INT32_MIN;
+    for (const auto& str : tokens) {
+        int32_t parsed_variable;
+        if ((parsed_variable = std::strtol(str.c_str(), nullptr, 10)) == 0 || errno == ERANGE) {
+            //Failed to parse, can't be the token I want
+            continue;
+        }
+        max_variable = std::max(max_variable, std::abs(parsed_variable));
+    }
+
+    //Fill the converted state to have variable_count falses
+    std::vector<bool> converted_state{static_cast<unsigned long>(max_variable), false, std::allocator<bool>()};
+
+    for (uint64_t mask = 0; mask < (1ull << max_variable); ++mask) {
+        std::bitset<64> bs{mask};
+
+        for (long i = 0; i < max_variable; ++i) {
+            converted_state[i] = bs[i];
+        }
+
+        if (evaulate_expression(tokens, converted_state)) {
+            std::cout << "Assignment was true\n";
+            for (long i = 0; i < max_variable; ++i) {
+                std::cout << converted_state[i];
+            }
+            std::cout << "\n";
+        } else {
+            std::cout << "Assignment was false\n";
+            for (long i = 0; i < max_variable; ++i) {
+                std::cout << converted_state[i];
+            }
+            std::cout << "\n";
+        }
+    }
 
 
     return {};
@@ -151,5 +196,33 @@ reparse:
     }
 
     return out_str;
+}
+
+//Returns whether the current variable assignment satisfies the postfix equation string
+bool evaulate_expression(const std::vector<std::string>& tokens, const std::vector<bool>& assignments) noexcept {
+    std::deque<bool> variable_outputs;
+
+    for (const auto& str : tokens) {
+        int32_t numeric_token;
+        if ((numeric_token = std::strtol(str.c_str(), nullptr, 10)) == 0 || errno == ERANGE) {
+            //Token is not a number
+
+            bool first = variable_outputs.front();
+            variable_outputs.pop_front();
+            bool second = variable_outputs.front();
+            variable_outputs.pop_front();
+
+            if (str.find("and") == 0) {
+                variable_outputs.push_front(first && second);
+            } else if (str.find("or") == 0) {
+                variable_outputs.push_front(first || second);
+            }
+        } else {
+            //Token is a number
+            variable_outputs.push_front(assignments[std::abs(numeric_token) - 1]);
+        }
+    }
+
+    return variable_outputs.front();
 }
 
