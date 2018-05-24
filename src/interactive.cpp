@@ -62,8 +62,10 @@ std::string shunting_yard(const std::string& input) noexcept {
     std::stringstream output;
 
     while (iss >> token) {
+reparse:
         int32_t numeric_token;
-        if ((numeric_token = std::strtol(token.c_str(), nullptr, 10)) == 0 || errno == ERANGE) {
+        char *num_parse_index;
+        if ((numeric_token = std::strtol(token.c_str(), &num_parse_index, 10)) == 0 || errno == ERANGE) {
             //Bad int conversion so it must be an operator or parenthesis
             if (token.find("and") != std::string::npos) {
                 operator_stack.push("and");
@@ -73,7 +75,6 @@ std::string shunting_yard(const std::string& input) noexcept {
                 iss.clear();
                 int32_t tmp;
                 if (iss >> tmp) {
-                    //variable_queue.push(tmp * -1);
                     output << (tmp * -1) << ' ';
                 } else {
                     std::cout << "Error attempting to negate provided term\n";
@@ -84,6 +85,11 @@ std::string shunting_yard(const std::string& input) noexcept {
                 if (token.front() == '(') {
                     //New equation
                     operator_stack.push("(");
+
+                    //Pop off the first character and reparse the token
+                    token.assign(token, 1, std::string::npos);
+                    goto reparse;
+
                 } else if (token.front() == ')') {
                     //End of current equation
                     if (operator_stack.empty()) {
@@ -101,6 +107,13 @@ std::string shunting_yard(const std::string& input) noexcept {
                     }
                     //Pop off the '(' character
                     operator_stack.pop();
+
+                    //Another closing bracket was found
+                    if (token.size() > 1 && token[1] == ')') {
+                        //Pop off the first character and reparse the token
+                        token.assign(token, 1, std::string::npos);
+                        goto reparse;
+                    }
                 } else {
                     std::cout << "Unknown token found\n";
                     return "";
@@ -108,8 +121,13 @@ std::string shunting_yard(const std::string& input) noexcept {
             }
         } else {
             //Successful int conversion
-            //variable_queue.push(numeric_token);
             output << numeric_token << ' ';
+
+            //Number literal is touching a close bracket, reparse the bracket
+            if (num_parse_index && *num_parse_index == ')') {
+                token = std::string(num_parse_index);
+                goto reparse;
+            }
         }
     }
 
