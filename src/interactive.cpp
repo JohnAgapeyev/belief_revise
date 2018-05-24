@@ -1,7 +1,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <stack>
+#include <deque>
 #include <queue>
 #include <cstdlib>
 #include "interactive.h"
@@ -55,7 +55,7 @@ bad_equation:
 std::string shunting_yard(const std::string& input) noexcept {
     std::istringstream iss{input};
 
-    std::stack<std::string> operator_stack;
+    std::deque<std::string> operator_stack;
 
     std::string token;
 
@@ -67,15 +67,15 @@ reparse:
         char *num_parse_index;
         if ((numeric_token = std::strtol(token.c_str(), &num_parse_index, 10)) == 0 || errno == ERANGE) {
             //Bad int conversion so it must be an operator or parenthesis
-            if (token.find("and") != std::string::npos) {
-                operator_stack.push("and");
-            } else if (token.find("or") != std::string::npos) {
-                operator_stack.push("or");
-            } else if (token.find("not") != std::string::npos) {
+            if (token.find("and") == 0) {
+                operator_stack.push_front("and");
+            } else if (token.find("or") == 0) {
+                operator_stack.push_front("or");
+            } else if (token.find("not") == 0) {
                 iss.clear();
-                int32_t tmp;
-                if (iss >> tmp) {
-                    output << (tmp * -1) << ' ';
+                int32_t negated_token;
+                if (iss >> negated_token) {
+                    output << (negated_token * -1) << ' ';
                 } else {
                     std::cout << "Error attempting to negate provided term\n";
                     return "";
@@ -84,21 +84,22 @@ reparse:
                 //Not a number or an operation
                 if (token.front() == '(') {
                     //New equation
-                    operator_stack.push("(");
+                    operator_stack.push_front("(");
 
-                    //Pop off the first character and reparse the token
-                    token.assign(token, 1, std::string::npos);
-                    goto reparse;
-
+                    if (token.size() > 1 && !std::isspace(token[1])) {
+                        //Pop off the first character and reparse the token
+                        token.assign(token, 1, std::string::npos);
+                        goto reparse;
+                    }
                 } else if (token.front() == ')') {
                     //End of current equation
                     if (operator_stack.empty()) {
                         std::cout << "Invalid equation formatting\n";
                         return "";
                     }
-                    while(operator_stack.top().front() != '(') {
-                        output << operator_stack.top() << ' ';
-                        operator_stack.pop();
+                    while(operator_stack.front().front() != '(') {
+                        output << operator_stack.front() << ' ';
+                        operator_stack.pop_front();
 
                         if (operator_stack.empty()) {
                             std::cout << "Invalid equation formatting\n";
@@ -106,7 +107,7 @@ reparse:
                         }
                     }
                     //Pop off the '(' character
-                    operator_stack.pop();
+                    operator_stack.pop_front();
 
                     //Another closing bracket was found
                     if (token.size() > 1 && token[1] == ')') {
@@ -133,8 +134,8 @@ reparse:
 
     //Add any remaining operations to the string
     while(!operator_stack.empty()) {
-        output << operator_stack.top() << ' ';
-        operator_stack.pop();
+        output << operator_stack.front() << ' ';
+        operator_stack.pop_front();
     }
 
     std::string out_str = output.str();
