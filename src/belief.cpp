@@ -18,6 +18,7 @@
 #include <chrono>
 #include "belief.h"
 
+//Helper function that determines if a given state satisfies the formula
 static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
     for (const auto& clause : clause_list) {
         bool term_false = true;
@@ -34,6 +35,7 @@ static bool satisfies(const std::vector<bool>& state, const std::vector<std::vec
     return true;
 }
 
+//Helper function that determines if a given state satisfies the formula
 static bool satisfies(const std::bitset<64>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
     for (const auto& clause : clause_list) {
         bool term_false = true;
@@ -50,6 +52,8 @@ static bool satisfies(const std::bitset<64>& state, const std::vector<std::vecto
     return true;
 }
 
+//Generates all possible states given a clause list and the final belief length
+//This grabs the results output from the All-SAT solver, and brute-force pads each output up to belief_length bits
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
     for (const auto& clause : clause_list) {
         for (const auto term : clause) {
@@ -139,7 +143,6 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 }
 
 //Caluclate the hamming distance between a state and the set of beliefs
-//This could probably be an std::algorithm
 unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
@@ -160,6 +163,7 @@ unsigned long state_difference(const std::vector<bool>& state, const std::vector
     return min_dist;
 }
 
+//Same as the other hamming distance formula, but uses a bitset for MUCH faster evaluation
 unsigned long state_difference(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
@@ -173,6 +177,7 @@ unsigned long state_difference(const std::bitset<512>& state, const std::vector<
     return min_dist;
 }
 
+//The main revision function
 void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept {
     auto formula_states = generate_states(formula, original_beliefs.front().size());
     if (formula_states.empty()) {

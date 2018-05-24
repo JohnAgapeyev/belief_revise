@@ -14,6 +14,8 @@
 #include <unordered_set>
 #include "file.h"
 
+//Returns an enum along with a variant, where the enum says what type the variant has
+//This means this same piece of code can parse all 3 accepted input formats without needing seperate functions
 std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>>> read_file(const char *path) noexcept {
     std::ifstream file{path};
 

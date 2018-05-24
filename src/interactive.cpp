@@ -10,12 +10,14 @@
 #include "interactive.h"
 #include "file.h"
 
+//Wrapper function
 std::string get_user_input() noexcept {
     std::string line;
     std::getline(std::cin, line);
     return line;
 }
 
+//Wrapper function around the input loop
 std::string get_formula_input() noexcept {
 bad_equation:
     std::cout << "Please enter your equation or \'h\' to display a help message detailing required formatting rules\n";
@@ -46,6 +48,7 @@ bad_equation:
     return input;
 }
 
+//Gets the maximum numnber of variables in an equation
 int32_t get_max_variable_num(const std::vector<std::string>& tokens) noexcept {
     int32_t max_variable = INT32_MIN;
     for (const auto& str : tokens) {
@@ -59,6 +62,7 @@ int32_t get_max_variable_num(const std::vector<std::string>& tokens) noexcept {
     return max_variable;
 }
 
+//Returns a DNF vector from a parsed equation
 std::vector<std::vector<int32_t>> get_dnf_from_equation(const std::vector<std::string>& tokens) noexcept {
     const auto max_variable = get_max_variable_num(tokens);
 
@@ -90,6 +94,7 @@ std::vector<std::vector<int32_t>> get_dnf_from_equation(const std::vector<std::s
     return output_dnf;
 }
 
+//The main interactive mode function
 std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run_interactive_mode() noexcept {
     std::cout << "Entering initial belief states:\n";
 
@@ -137,6 +142,7 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run
     return {raw_belief_states, formula_cnf};
 }
 
+//Converts infix expression to postfix using the Shunting Yard algorithm
 std::string shunting_yard(const std::string& input) noexcept {
     std::istringstream iss{input};
 
