@@ -54,7 +54,7 @@ MYFLAGS	+= -D CBJ				# Conflict-directed Back Jumping
 # if DLEVEL is not defined, sublevel-based first UIP scheme is selected.
  MYFLAGS += -D DLEVEL	# decision level-based first UIP scheme
 
-#MYFLAGS += -D REFRESH		# refresh option in command line is enabled. If the number of BDD nodes exceeds a specified threshold, all solutions are dumpted to a file (if output file is specified in command line), all caches are refreshed, and search is continued.
+MYFLAGS += -D REFRESH		# refresh option in command line is enabled. If the number of BDD nodes exceeds a specified threshold, all solutions are dumpted to a file (if output file is specified in command line), all caches are refreshed, and search is continued.
 #######################################
 
 #MYFLAGS += -D TRIE_REC	# Recursive version of trie implementation. If this is not defined, iterative version is used.
