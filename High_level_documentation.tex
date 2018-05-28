@@ -59,7 +59,7 @@ formula.
 \subsection{Implementation}
 
 Our solver is written in modern C++17 for POSIX systems, and utilizes
-OpenMP 4.0 for parallelism.
+OpenMP 4.5 for parallelism.
 
 \section{Input}
 
@@ -132,8 +132,8 @@ Belief Revision is carried out with the following algorithm:
 \item generateStates() generates all possible state assignments that satisfy
 the formula $\phi$.
 \item distance() calculates the total pre-order of the state $S_{i}$ compared
-to the existing beliefs $K$. This is currently implemented using
-the Hamming Distance algorithm.
+to the existing beliefs $K$. Our solver natively supports Hamming
+Distance, though it can use other pre-orders with minor modifications.
 \end{enumerate}
 Our use of an All-SAT solver is characterized in the generateStates()
 function. Since we require the set of all satisfying assignments to
@@ -240,14 +240,14 @@ limiting factor for our solver is the fundamental scale of solutions
 returned from the All-SAT solver. When testing with a variety of 3-SAT
 formula inputs with 100 variables, the range of possible solutions
 ranged from 200 to well over 7000, depending on the individual input.
-When attempting to solve formulas with 250 inputs, the total number
-of solutions increased to over 38 million solutions, and required
-more than 40 GB on disk. When the solutions are padded properly to
-match the belief state inputs, the total number of generated states
-becomes computationally infeasible to manipulate. We have attempted
-to create an efficient implementation of a belief revision solver,
-but without algorithmic improvements on All-SAT, the potential scaling
-of our solver is limited.
+When attempting to solve formulas with 250 variables, the total number
+of solutions increased to over 38 million, and required more than
+40 GB on disk. When the solutions are padded properly to match the
+belief state inputs, the total number of generated states becomes
+computationally infeasible to manipulate. We have attempted to create
+an efficient implementation of a belief revision solver, but without
+algorithmic improvements on All-SAT, the potential scaling of our
+solver is limited.
 
 \section{Conclusion}
 
