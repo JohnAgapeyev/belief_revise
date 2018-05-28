@@ -15,8 +15,18 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <chrono>
+#include <functional>
+#include <omp.h>
 #include "belief.h"
+
+std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
+
+template<typename T, typename... U>
+auto getAddress(std::function<T(U...)> f) {
+    typedef T(fnType)(U...);
+    fnType ** fnPointer = f.template target<fnType*>();
+    return *fnPointer;
+}
 
 //Helper function that determines if a given state satisfies the formula
 static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
@@ -143,28 +153,61 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 }
 
 //Caluclate the hamming distance between a state and the set of beliefs
-unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) noexcept {
+unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
+#if 0
     unsigned long min_dist = ULONG_MAX;
+
+    const auto start = omp_get_wtime();
 
 #pragma omp parallel for reduction(min: min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
-        const auto& b = *it;
-        assert(state.size() == b.size());
+        assert(state.size() == it->size());
 
         unsigned long count = 0;
-
-#pragma omp simd
-        for (unsigned long i = 0; i < b.size(); ++i) {
-            count += b[i] ^ state[i];
+#pragma omp simd reduction(+: count)
+        for (unsigned long i = 0; i < it->size(); ++i) {
+            count += (*it)[i] ^ state[i];
         }
         min_dist = std::min(min_dist, count);
     }
+    const auto end = omp_get_wtime();
+    std::cout << "Done conversion " << (end - start) << "\n";
 
     return min_dist;
+#else
+    const auto start = omp_get_wtime();
+
+    unsigned long min_dist = ULONG_MAX;
+
+    std::bitset<512> bstate;
+    std::vector<std::bitset<512>> bbeliefs;
+    bbeliefs.reserve(belief_set.size());
+
+#pragma omp parallel shared(bstate, bbeliefs, min_dist)
+    {
+#pragma omp for schedule(static) nowait
+        for (unsigned int i = 0; i < 512; ++i) {
+            bstate[i] = (i < state.size()) ? state[i] : false;
+        }
+#pragma omp for schedule(static) reduction(min: min_dist) nowait
+        for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
+            std::bitset<512> bs;
+            for (unsigned int i = 0; i < 512; ++i) {
+                bs[i] = (i < it->size()) ? (*it)[i] : false;
+            }
+            min_dist = std::min(min_dist, (bstate ^ bs).count());
+        }
+    }
+
+    const auto end = omp_get_wtime();
+    std::cout << "Done conversion " << (end - start) << "\n";
+
+    return min_dist;
+#endif
 }
 
 //Same as the other hamming distance formula, but uses a bitset for MUCH faster evaluation
-unsigned long state_difference(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
+unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
 #pragma omp parallel for reduction(min: min_dist) schedule(static)
@@ -208,39 +251,55 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
         //Calculate distances and add stuff that way
         std::multimap<unsigned long, std::vector<bool>> distance_map;
 
-        //512 bits because that is infeasible to compute
-        //Could do 256, but theoretically, I might be able to do that
-        std::vector<std::bitset<512>> formula_bits{formula_states.size(), {}, std::allocator<std::bitset<512>>()};
-        std::vector<std::bitset<512>> belief_bits;
+        std::cout << (total_preorder.target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()) << "\n";
+        std::cout << (std::function<decltype(state_difference)>(state_difference).target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()) << "\n";
+        std::cout << getAddress(total_preorder) << "\n";
 
-        belief_bits.reserve(original_beliefs.size());
+#if 0
+        if (total_preorder.target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()
+                == std::function<decltype(state_difference)>(state_difference).target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()) {
+#else
+        if (getAddress(total_preorder) == getAddress(decltype(total_preorder)(state_difference))) {
+#endif
+            std::cout << "SPEEDY QUICKNESS\n";
+            //512 bits because that is infeasible to compute
+            //Could do 256, but theoretically, I might be able to do that
+            std::vector<std::bitset<512>> formula_bits{formula_states.size(), {}, std::allocator<std::bitset<512>>()};
+            std::vector<std::bitset<512>> belief_bits;
+
+            belief_bits.reserve(original_beliefs.size());
 
 #pragma omp parallel shared(formula_bits, belief_bits)
-        {
+            {
 #pragma omp for schedule(static) nowait
-            for (auto it = formula_states.cbegin(); it < formula_states.cend(); ++it) {
-                std::bitset<512> bs;
-                for (unsigned int i = 0; i < 512; ++i) {
-                    bs[i] = (i < it->size()) ? (*it)[i] : false;
-                }
+                for (auto it = formula_states.cbegin(); it < formula_states.cend(); ++it) {
+                    std::bitset<512> bs;
+                    for (unsigned int i = 0; i < 512; ++i) {
+                        bs[i] = (i < it->size()) ? (*it)[i] : false;
+                    }
 #pragma omp critical(form)
-                formula_bits[formula_bits.size() - std::distance(it, formula_states.cend())] = std::move(bs);
-            }
-#pragma omp for schedule(static) nowait
-            for (auto it = original_beliefs.cbegin(); it < original_beliefs.cend(); ++it) {
-                std::bitset<512> bs;
-                for (unsigned int i = 0; i < 512; ++i) {
-                    bs[i] = (i < it->size()) ? (*it)[i] : false;
+                    formula_bits[formula_bits.size() - std::distance(it, formula_states.cend())] = std::move(bs);
                 }
+#pragma omp for schedule(static) nowait
+                for (auto it = original_beliefs.cbegin(); it < original_beliefs.cend(); ++it) {
+                    std::bitset<512> bs;
+                    for (unsigned int i = 0; i < 512; ++i) {
+                        bs[i] = (i < it->size()) ? (*it)[i] : false;
+                    }
 #pragma omp critical(bell)
-                belief_bits.emplace_back(std::move(bs));
+                    belief_bits.emplace_back(std::move(bs));
+                }
             }
-        }
 
-        std::cout << "Done conversion\n";
+            std::cout << "Done conversion\n";
 
-        for (unsigned int i = 0; i < formula_states.size(); ++i) {
-            distance_map.emplace(state_difference(formula_bits[i], belief_bits), formula_states[i]);
+            for (unsigned int i = 0; i < formula_states.size(); ++i) {
+                distance_map.emplace(hamming(formula_bits[i], belief_bits), formula_states[i]);
+            }
+        } else {
+            for (unsigned int i = 0; i < formula_states.size(); ++i) {
+                distance_map.emplace(total_preorder(formula_states[i], original_beliefs), formula_states[i]);
+            }
         }
 
         //Since no element is contained inside the original beliefs, no distance will be zero
