@@ -16,9 +16,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <functional>
-#include <omp.h>
 #include "belief.h"
 
+/*
+ * This is an example preordering that one can write, if they desire something other than the hamming distance.
+ * If you desire a specialization of this function for performance, see the README for details.
+ */
 unsigned long example_preorder(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
     if (state.size() < 3) {
         return 2;
@@ -34,6 +37,7 @@ unsigned long example_preorder(const std::vector<bool>& state, const std::vector
     }
 }
 
+//THIS IS WHERE THE PRE-ORDER IS ASSIGNED, CHANGE THIS IF YOU WANT A DIFFERENT PRE-ORDER
 const std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
 
 //Helper function that determines if a given state satisfies the formula
@@ -262,8 +266,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
                 distance_map.emplace(hamming(formula_bits[i], belief_bits), formula_states[i]);
             }
         } else {
-            for (unsigned int i = 0; i < formula_states.size(); ++i) {
-                distance_map.emplace(total_preorder(formula_states[i], original_beliefs), formula_states[i]);
+            for (const auto& state : formula_states) {
+                distance_map.emplace(total_preorder(state, original_beliefs), state);
             }
         }
 
