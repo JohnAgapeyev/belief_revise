@@ -19,14 +19,22 @@
 #include <omp.h>
 #include "belief.h"
 
-std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
-
-template<typename T, typename... U>
-auto getAddress(std::function<T(U...)> f) {
-    typedef T(fnType)(U...);
-    fnType ** fnPointer = f.template target<fnType*>();
-    return *fnPointer;
+unsigned long example_preorder(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
+    if (state.size() < 3) {
+        return 2;
+    }
+    if (state[0]) {
+        return 0;
+    } else if (state[1]) {
+        return 1;
+    } else if (state[2]) {
+        return 4;
+    } else {
+        return 7;
+    }
 }
+
+const std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
 
 //Helper function that determines if a given state satisfies the formula
 static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
@@ -154,10 +162,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 
 //Caluclate the hamming distance between a state and the set of beliefs
 unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
-#if 0
     unsigned long min_dist = ULONG_MAX;
-
-    const auto start = omp_get_wtime();
 
 #pragma omp parallel for reduction(min: min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
@@ -170,43 +175,12 @@ unsigned long state_difference(const std::vector<bool>& state, const std::vector
         }
         min_dist = std::min(min_dist, count);
     }
-    const auto end = omp_get_wtime();
-    std::cout << "Done conversion " << (end - start) << "\n";
 
     return min_dist;
-#else
-    const auto start = omp_get_wtime();
-
-    unsigned long min_dist = ULONG_MAX;
-
-    std::bitset<512> bstate;
-    std::vector<std::bitset<512>> bbeliefs;
-    bbeliefs.reserve(belief_set.size());
-
-#pragma omp parallel shared(bstate, bbeliefs, min_dist)
-    {
-#pragma omp for schedule(static) nowait
-        for (unsigned int i = 0; i < 512; ++i) {
-            bstate[i] = (i < state.size()) ? state[i] : false;
-        }
-#pragma omp for schedule(static) reduction(min: min_dist) nowait
-        for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
-            std::bitset<512> bs;
-            for (unsigned int i = 0; i < 512; ++i) {
-                bs[i] = (i < it->size()) ? (*it)[i] : false;
-            }
-            min_dist = std::min(min_dist, (bstate ^ bs).count());
-        }
-    }
-
-    const auto end = omp_get_wtime();
-    std::cout << "Done conversion " << (end - start) << "\n";
-
-    return min_dist;
-#endif
 }
 
 //Same as the other hamming distance formula, but uses a bitset for MUCH faster evaluation
+//Must be different name since overloading functions messes with function comparisons in order to actually call this function
 unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
@@ -251,17 +225,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
         //Calculate distances and add stuff that way
         std::multimap<unsigned long, std::vector<bool>> distance_map;
 
-        std::cout << (total_preorder.target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()) << "\n";
-        std::cout << (std::function<decltype(state_difference)>(state_difference).target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()) << "\n";
-        std::cout << getAddress(total_preorder) << "\n";
-
-#if 0
-        if (total_preorder.target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()
-                == std::function<decltype(state_difference)>(state_difference).target<unsigned long (*)(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>()) {
-#else
-        if (getAddress(total_preorder) == getAddress(decltype(total_preorder)(state_difference))) {
-#endif
-            std::cout << "SPEEDY QUICKNESS\n";
+        //Specialization of hamming distance to efficiently use bitsets
+        if (total_preorder == decltype(total_preorder)(state_difference)) {
             //512 bits because that is infeasible to compute
             //Could do 256, but theoretically, I might be able to do that
             std::vector<std::bitset<512>> formula_bits{formula_states.size(), {}, std::allocator<std::bitset<512>>()};
@@ -302,8 +267,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
             }
         }
 
-        //Since no element is contained inside the original beliefs, no distance will be zero
-        const auto min_dist = distance_map.upper_bound(0)->first;
+        //Grab every element whose key is equal to the lowest key in the map
+        const auto min_dist = distance_map.lower_bound(0)->first;
 
         //Add all the beliefs that have the minimal distance from the original ones
         const auto range = distance_map.equal_range(min_dist);

@@ -5,7 +5,17 @@
 #include <functional>
 #include <bitset>
 
-extern std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder;
+template<typename T, typename... U>
+constexpr auto get_function_address(const std::function<T(U...)>& f) {
+    return *f.template target<T(*)(U...)>();
+}
+
+template<typename T, typename... U>
+constexpr auto operator==(const std::function<T(U...)>& lhs, const std::function<T(U...)>& rhs) {
+    return get_function_address(lhs) == get_function_address(rhs);
+}
+
+extern const std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder;
 
 //Generates a vector of all possible states given a formula clause list and the total belief length
 std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept;
