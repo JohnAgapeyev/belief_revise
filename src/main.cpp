@@ -87,14 +87,24 @@ int main(int argc, char **argv) {
     }
 
     auto [belief_format, beliefs] = read_file(belief_path);
-    auto [formula_format, formula] = read_file(formula_path);
 
-    if ((belief_format != type_format::RAW && std::get<std::vector<std::vector<int32_t>>>(beliefs).empty())
+    if ((belief_format != type_format::RAW && !std::get_if<std::vector<std::vector<int32_t>>>(&beliefs))
+            || (belief_format == type_format::RAW && !std::get_if<std::vector<std::vector<bool>>>(&beliefs))) {
+        std::cerr << "Error parsing belief file\n";
+        return EXIT_FAILURE;
+    } else if ((belief_format != type_format::RAW && std::get<std::vector<std::vector<int32_t>>>(beliefs).empty())
             || (belief_format == type_format::RAW && std::get<std::vector<std::vector<bool>>>(beliefs).empty())) {
         std::cerr << "Error parsing belief file\n";
         return EXIT_FAILURE;
     }
-    if ((formula_format != type_format::RAW && std::get<std::vector<std::vector<int32_t>>>(formula).empty())
+
+    auto [formula_format, formula] = read_file(formula_path);
+
+    if ((formula_format != type_format::RAW && !std::get_if<std::vector<std::vector<int32_t>>>(&formula))
+            || (formula_format == type_format::RAW && !std::get_if<std::vector<std::vector<bool>>>(&formula))) {
+        std::cerr << "Error parsing belief file\n";
+        return EXIT_FAILURE;
+    } else if ((formula_format != type_format::RAW && std::get<std::vector<std::vector<int32_t>>>(formula).empty())
             || (formula_format == type_format::RAW && std::get<std::vector<std::vector<bool>>>(formula).empty())) {
         std::cerr << "Error parsing formula file\n";
         return EXIT_FAILURE;
