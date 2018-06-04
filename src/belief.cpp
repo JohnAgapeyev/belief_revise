@@ -342,9 +342,14 @@ minimize:
 
 std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<int32_t>>& original_terms) noexcept {
     std::vector<std::vector<int32_t>> output;
+    output.reserve(original_terms.size());
 
-    for (const auto& first : original_terms) {
+#pragma omp parallel for schedule(static) shared(output)
+    //for (const auto& first : original_terms) {
+    for (auto it = original_terms.cbegin(); it < original_terms.cend(); ++it) {
+        const auto& first = *it;
         std::vector<int32_t> converted_term;
+        converted_term.reserve(first.size());
         bool term_minimized = false;
         for (const auto& second : original_terms) {
             if (first == second) {
@@ -368,11 +373,11 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
                 }
                 converted_term.emplace_back(first[i]);
             }
+#pragma omp critical
             output.emplace_back(converted_term);
             converted_term.clear();
             term_minimized = true;
         }
-        //if (converted_term.empty()) {
         if (!term_minimized) {
             for (unsigned long i = 0; i < first.size(); ++i) {
                 converted_term.emplace_back(first[i]);
@@ -382,6 +387,7 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
             converted_term.clear();
             continue;
         }
+#pragma omp critical
         output.emplace_back(std::move(converted_term));
     }
 
