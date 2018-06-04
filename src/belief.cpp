@@ -322,20 +322,11 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
 minimize:
     std::cout << "Minimization is possible\nMinimized states:\n";
-    auto minimized = minimize_output(revised_beliefs);
-    auto converted_min = convert_to_bool(minimized);
+    auto minimized = minimize_output(convert_to_num(revised_beliefs));
     for (;;) {
-        unsigned long old_size = converted_min.size();
+        unsigned long old_size = minimized.size();
         std::cout << "Size: " << old_size << "\n";
-
-            for (const auto& belief : minimized) {
-                for (const auto term : belief) {
-                    std::cout << term << " ";
-                }
-                std::cout << "\n";
-            }
-
-        minimized = minimize_output(converted_min);
+        minimized = minimize_output(minimized);
         if (old_size == minimized.size()) {
             //Print minimized
             for (const auto& belief : minimized) {
@@ -346,12 +337,10 @@ minimize:
             }
             break;
         }
-        //Convert back to vector bool
-        converted_min = convert_to_bool(minimized);
     }
 }
 
-std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<bool>>& original_terms) noexcept {
+std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<int32_t>>& original_terms) noexcept {
     std::vector<std::vector<int32_t>> output;
 
     for (const auto& first : original_terms) {
@@ -364,8 +353,8 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
             unsigned long count = 0;
             unsigned long index = -1;
             for (unsigned long i = 0; i < std::min(first.size(), second.size()); ++i) {
-                count += first[i] ^ second[i];
-                if (first[i] ^ second[i]) {
+                if (std::abs(first[i]) == std::abs(second[i]) && first[i] != second[i]) {
+                    ++count;
                     index = i;
                 }
             }
@@ -377,11 +366,7 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
                 if (i == index) {
                     continue;
                 }
-                int32_t term = i + 1;
-                if (!first[i]) {
-                    term *= -1;
-                }
-                converted_term.emplace_back(term);
+                converted_term.emplace_back(first[i]);
             }
             output.emplace_back(converted_term);
             converted_term.clear();
@@ -390,11 +375,7 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
         //if (converted_term.empty()) {
         if (!term_minimized) {
             for (unsigned long i = 0; i < first.size(); ++i) {
-                int32_t term = i + 1;
-                if (!first[i]) {
-                    term *= -1;
-                }
-                converted_term.emplace_back(term);
+                converted_term.emplace_back(first[i]);
             }
         }
         if (std::find(output.cbegin(), output.cend(), converted_term) != output.cend()) {
