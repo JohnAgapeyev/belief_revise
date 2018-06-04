@@ -28,4 +28,6 @@ unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bits
 //The main revision function
 void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept;
 
+std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<bool>>& original_terms) noexcept;
+
 #endif

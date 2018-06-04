@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <functional>
 #include "belief.h"
+#include "utils.h"
 
 /*
  * This is an example preordering that one can write, if they desire something other than the hamming distance.
@@ -291,4 +292,121 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
         }
         std::cout << "\n";
     }
+    for (const auto& belief : revised_beliefs) {
+        for (unsigned long i = 0; i < belief.size(); ++i) {
+            int32_t term = i + 1;
+            if (!belief[i]) {
+                term *= -1;
+            }
+            std::cout << term << " ";
+        }
+        std::cout << "\n";
+    }
+
+    for (const auto& first : revised_beliefs) {
+        std::vector<int32_t> converted_term;
+        for (const auto& second : revised_beliefs) {
+            if (first == second) {
+                continue;
+            }
+            unsigned long count = 0;
+            for (unsigned long i = 0; i < first.size(); ++i) {
+                count += first[i] ^ second[i];
+            }
+            if (count == 1) {
+                goto minimize;
+            }
+        }
+    }
+    return;
+
+minimize:
+    std::cout << "Minimization is possible\nMinimized states:\n";
+    auto minimized = minimize_output(revised_beliefs);
+    auto converted_min = convert_to_bool(minimized);
+    for (;;) {
+        unsigned long old_size = converted_min.size();
+        std::cout << "Size: " << old_size << "\n";
+
+            for (const auto& belief : minimized) {
+                for (const auto term : belief) {
+                    std::cout << term << " ";
+                }
+                std::cout << "\n";
+            }
+
+        minimized = minimize_output(converted_min);
+        if (old_size == minimized.size()) {
+            //Print minimized
+            for (const auto& belief : minimized) {
+                for (const auto term : belief) {
+                    std::cout << term << " ";
+                }
+                std::cout << "\n";
+            }
+            break;
+        }
+        //Convert back to vector bool
+        converted_min = convert_to_bool(minimized);
+    }
+}
+
+std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<bool>>& original_terms) noexcept {
+    std::vector<std::vector<int32_t>> output;
+
+    for (const auto& first : original_terms) {
+        std::vector<int32_t> converted_term;
+        bool term_minimized = false;
+        for (const auto& second : original_terms) {
+            if (first == second) {
+                continue;
+            }
+            unsigned long count = 0;
+            unsigned long index = -1;
+            for (unsigned long i = 0; i < std::min(first.size(), second.size()); ++i) {
+                count += first[i] ^ second[i];
+                if (first[i] ^ second[i]) {
+                    index = i;
+                }
+            }
+            if (count != 1) {
+                continue;
+            }
+            //Count is 1, minimize
+            for (unsigned long i = 0; i < first.size(); ++i) {
+                if (i == index) {
+                    continue;
+                }
+                int32_t term = i + 1;
+                if (!first[i]) {
+                    term *= -1;
+                }
+                converted_term.emplace_back(term);
+            }
+            output.emplace_back(converted_term);
+            converted_term.clear();
+            term_minimized = true;
+        }
+        //if (converted_term.empty()) {
+        if (!term_minimized) {
+            for (unsigned long i = 0; i < first.size(); ++i) {
+                int32_t term = i + 1;
+                if (!first[i]) {
+                    term *= -1;
+                }
+                converted_term.emplace_back(term);
+            }
+        }
+        if (std::find(output.cbegin(), output.cend(), converted_term) != output.cend()) {
+            converted_term.clear();
+            continue;
+        }
+        output.emplace_back(std::move(converted_term));
+    }
+
+    std::sort(output.begin(), output.end());
+    output.erase(std::unique(output.begin(), output.end()), output.end());
+    output.erase(std::remove_if(output.begin(), output.end(), [](const auto& clause){return clause.empty();}), output.end());
+
+    return output;
 }
