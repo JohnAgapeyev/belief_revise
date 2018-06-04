@@ -113,7 +113,7 @@ std::pair<std::vector<std::vector<bool>>, std::vector<std::vector<int32_t>>> run
 
     const auto max_variable = get_max_variable_num(tokens);
 
-    //Fill the converted state to have variable_count falses
+    //Fill the converted state to have max_variable falses
     std::vector<bool> converted_state{static_cast<unsigned long>(max_variable), false, std::allocator<bool>()};
 
     std::vector<std::vector<int32_t>> formula_cnf;
@@ -265,7 +265,11 @@ bool evaulate_expression(const std::vector<std::string>& tokens, const std::vect
             }
         } else {
             //Token is a number
-            variable_outputs.push_front(assignments[std::abs(numeric_token) - 1]);
+            bool result = assignments[std::abs(numeric_token) - 1];
+            if (numeric_token < 0) {
+                result = !result;
+            }
+            variable_outputs.push_front(result);
         }
     }
 
