@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <functional>
+#include <omp.h>
 #include "belief.h"
 #include "utils.h"
 
@@ -321,14 +322,32 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
     return;
 
 minimize:
-    std::cout << "Minimization is possible\nMinimized states:\n";
+    std::cout << "Minimization is possible\n";
+
+    std::cout << "Initial pre-minized state size: " << revised_beliefs.size() << "\n";
+
     auto minimized = minimize_output(convert_to_num(revised_beliefs));
     for (;;) {
         unsigned long old_size = minimized.size();
-        std::cout << "Size: " << old_size << "\n";
+
+        std::cout << "Minimized Size: " << old_size << "\n";
+        unsigned long long old_sum = 0;
+        for (const auto& clause : minimized) {
+            old_sum += clause.size();
+        }
+        std::cout << "Average clause size: " << (old_sum / old_size) << "\n";
+
         minimized = minimize_output(minimized);
-        if (old_size == minimized.size()) {
+
+        unsigned long long new_sum = 0;
+        for (const auto& clause : minimized) {
+            new_sum += clause.size();
+        }
+
+        if (old_size == minimized.size() && new_sum == old_sum) {
+            minimized = minimize_output(minimized);
             //Print minimized
+            std::cout << "Minimized states:\n";
             for (const auto& belief : minimized) {
                 for (const auto term : belief) {
                     std::cout << term << " ";
@@ -337,6 +356,10 @@ minimize:
             }
             break;
         }
+        for (auto& clause : minimized) {
+            clause.shrink_to_fit();
+        }
+        minimized.shrink_to_fit();
     }
 }
 
@@ -344,12 +367,13 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
     std::vector<std::vector<int32_t>> output;
     output.reserve(original_terms.size());
 
-#pragma omp parallel for schedule(static) shared(output)
+    std::vector<int32_t> converted_term;
+    converted_term.reserve(original_terms.front().size());
+
     //for (const auto& first : original_terms) {
+#pragma omp parallel for schedule(static) shared(output) firstprivate(converted_term)
     for (auto it = original_terms.cbegin(); it < original_terms.cend(); ++it) {
         const auto& first = *it;
-        std::vector<int32_t> converted_term;
-        converted_term.reserve(first.size());
         bool term_minimized = false;
         for (const auto& second : original_terms) {
             if (first == second) {
@@ -358,7 +382,7 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
             unsigned long count = 0;
             unsigned long index = -1;
             for (unsigned long i = 0; i < std::min(first.size(), second.size()); ++i) {
-                if (std::abs(first[i]) == std::abs(second[i]) && first[i] != second[i]) {
+                if ((first[i] * -1) == second[i]) {
                     ++count;
                     index = i;
                 }
@@ -383,17 +407,40 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
                 converted_term.emplace_back(first[i]);
             }
         }
-        if (std::find(output.cbegin(), output.cend(), converted_term) != output.cend()) {
-            converted_term.clear();
-            continue;
-        }
 #pragma omp critical
-        output.emplace_back(std::move(converted_term));
+        output.emplace_back(converted_term);
+        converted_term.clear();
+    }
+
+
+    for (auto& clause : output) {
+        std::sort(clause.begin(), clause.end());
     }
 
     std::sort(output.begin(), output.end());
     output.erase(std::unique(output.begin(), output.end()), output.end());
     output.erase(std::remove_if(output.begin(), output.end(), [](const auto& clause){return clause.empty();}), output.end());
+
+    //Remove supersets of existing clauses
+    //This results in smaller end results, but doesn't really affect the initial state increase
+    output.erase(std::remove_if(output.begin(), output.end(),
+                [&] (const auto& clause) {
+                    for (const auto& other : output) {
+                        if (clause == other || other.empty()) {
+                            continue;
+                        }
+                        if (std::includes(clause.cbegin(), clause.cend(), other.cbegin(), other.cend())) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                ), output.end());
+
+    const auto abs_cmp = [](const auto& lhs, const auto& rhs){return std::abs(lhs) < std::abs(rhs);};
+    for (auto& clause : output) {
+        std::sort(clause.begin(), clause.end(), abs_cmp);
+    }
 
     return output;
 }
