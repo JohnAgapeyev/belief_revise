@@ -6,6 +6,7 @@
 #include <utility>
 #include <fstream>
 #include <variant>
+#include <unordered_map>
 
 enum class type_format {
     CNF,
@@ -24,5 +25,7 @@ std::vector<std::vector<int32_t>> convert_raw(const std::vector<std::vector<bool
 
 //Converts between DNF vectors and bool vectors
 std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<int32_t>>& clause_list) noexcept;
+
+std::unordered_map<int32_t, unsigned long> read_pd_ordering(const char *path) noexcept;
 
 #endif

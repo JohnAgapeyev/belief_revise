@@ -29,7 +29,7 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
     std::vector<std::vector<bool>> output_bits;
 
     bool problem_found = false;
-    type_format input_type;
+    type_format input_type = type_format::RAW;
 
     for (std::string line; std::getline(file, line);) {
         //Ignore empty lines
@@ -250,3 +250,54 @@ std::vector<std::vector<bool>> convert_dnf_to_raw(const std::vector<std::vector<
 
     return output;
 }
+
+std::unordered_map<int32_t, unsigned long> read_pd_ordering(const char *path) noexcept {
+    std::ifstream file{path};
+
+    if (!file) {
+        std::cerr << "Unable to open file " << strerror(errno) << "\n";
+        std::cerr << path << "\n";
+        return {};
+    }
+
+    unsigned long distance_value = 1;
+    std::unordered_map<int32_t, unsigned long> orderings;
+    int32_t max_variable = -1;
+
+    for (std::string line; std::getline(file, line);) {
+        //Ignore empty lines
+        if (line.empty()) {
+            continue;
+        }
+
+        for (const auto c : line) {
+            if (!std::isdigit(c) && !std::isspace(c)) {
+                std::cerr << "Line contained invalid character\n";
+                return {};
+            }
+        }
+
+        std::istringstream iss{std::move(line)};
+        int32_t variable_num;
+
+        while(iss >> variable_num) {
+            if (variable_num <= 0) {
+                std::cerr << "Variable numbers cannot be negative\n";
+                return {};
+            }
+            orderings.emplace(variable_num, distance_value);
+            max_variable = std::max(variable_num, max_variable);
+        }
+        ++distance_value;
+    }
+
+    for (auto i = 1; i < max_variable; ++i) {
+        if (!orderings.count(i)) {
+            std::cerr << "There must be no gaps in variable orderings\n";
+            return {};
+        }
+    }
+
+    return orderings;
+}
+

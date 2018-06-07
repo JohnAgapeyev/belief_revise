@@ -12,6 +12,8 @@ static struct option long_options[] = {
     {"belief_set",  required_argument, 0, 'b'},
     {"formula",     required_argument, 0, 'f'},
     {"interactive", no_argument,       0, 'i'},
+    {"pd-ordering", required_argument, 0, 'p'},
+    {"dalal",       no_argument,       0, 'd'},
     {0,         0,                 0, 0}
 };
 
@@ -21,6 +23,8 @@ static struct option long_options[] = {
                 "\t [i]nteractive           - Run the application in interactive mode\n"\
                 "\t [b]elief_set            - The file path of the initial belief set\n"\
                 "\t [f]ormula               - The file path of the revision formula\n"\
+                "\t [p]d-ordering           - The file path of the pd orderings\n"\
+                "\t [d]alal                 - Use the Dalal pre-order (Hamming distance)\n"\
                 "\t [h]elp                  - this message\n"\
                 "If interactive mode is not specified, the belief_set and formula paths must be provided\n"\
                 );\
@@ -29,11 +33,13 @@ static struct option long_options[] = {
 int main(int argc, char **argv) {
     const char *belief_path = nullptr;
     const char *formula_path = nullptr;
+    const char *pd_path = nullptr;
     bool is_interactive = false;
+    bool use_pd_ordering = false;
     for (;;) {
         int c;
         int option_index = 0;
-        if ((c = getopt_long(argc, argv, "b:f:ih", long_options, &option_index)) == -1) {
+        if ((c = getopt_long(argc, argv, "b:f:ihp:d", long_options, &option_index)) == -1) {
             break;
         }
         switch (c) {
@@ -45,6 +51,13 @@ int main(int argc, char **argv) {
                 break;
             case 'f':
                 formula_path = optarg;
+                break;
+            case 'd':
+                use_pd_ordering = false;
+                break;
+            case 'p':
+                use_pd_ordering = true;
+                pd_path = optarg;
                 break;
             case 'h':
                 [[fallthrough]];
@@ -125,6 +138,28 @@ int main(int argc, char **argv) {
         }
         //Convert that DNF into CNF
         formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
+    }
+
+    if (use_pd_ordering) {
+        if (pd_path == nullptr) {
+            std::cerr << "PD path was null when it shouldn't be\n";
+            return EXIT_FAILURE;
+        }
+        const auto orderings = read_pd_ordering(pd_path);
+        if (orderings.empty()) {
+            std::cerr << "Error reading pd ordering file\n";
+            return EXIT_FAILURE;
+        }
+
+        if (!orderings.count(std::get<std::vector<std::vector<bool>>>(beliefs).size())) {
+            std::cerr << "PD orderings must contain assignments for all input variables\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout << "Variable orderings:\n";
+        for (const auto& p : orderings) {
+            std::cout << p.first << " " << p.second << "\n";
+        }
     }
 
     std::cout << "Initial belief states:\n";

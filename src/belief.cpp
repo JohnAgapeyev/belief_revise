@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <functional>
+#include <unordered_map>
 #include <omp.h>
 #include "belief.h"
 #include "utils.h"
@@ -40,7 +41,7 @@ unsigned long example_preorder(const std::vector<bool>& state, const std::vector
 }
 
 //THIS IS WHERE THE PRE-ORDER IS ASSIGNED, CHANGE THIS IF YOU WANT A DIFFERENT PRE-ORDER
-const std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
+std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
 
 //Helper function that determines if a given state satisfies the formula
 static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
@@ -192,9 +193,48 @@ unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bits
 
 #pragma omp parallel for reduction(min: min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
-        const auto& b = *it;
-        assert(state.size() == b.size());
-        min_dist = std::min(min_dist, (state ^ b).count());
+        assert(state.size() == it->size());
+        min_dist = std::min(min_dist, (state ^ *it).count());
+    }
+
+    return min_dist;
+}
+
+unsigned long pd_hamming(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set, const std::unordered_map<int32_t, unsigned long>& orderings) {
+    unsigned long min_dist = ULONG_MAX;
+
+#pragma omp parallel for reduction(min: min_dist) schedule(static)
+    for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
+        assert(state.size() == it->size());
+
+        unsigned long count = 0;
+#pragma omp simd reduction(+: count)
+        for (unsigned long i = 0; i < it->size(); ++i) {
+            assert(orderings.count(i + 1));
+            count += ((*it)[i] ^ state[i]) * (orderings.find(i + 1)->second);
+        }
+        min_dist = std::min(min_dist, count);
+    }
+
+    return min_dist;
+}
+
+unsigned long pd_hamming_bitset(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set, const std::unordered_map<int32_t, unsigned long>& orderings) noexcept {
+    unsigned long min_dist = ULONG_MAX;
+
+#pragma omp parallel for reduction(min: min_dist) schedule(static)
+    for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
+        assert(state.size() == it->size());
+
+        unsigned long count = 0;
+        const auto result = (state ^ *it);
+
+        for (auto i = 0; i < 512; ++i) {
+            assert(orderings.count(i + 1));
+            count += result[i] * (orderings.find(i + 1)->second);
+        }
+
+        min_dist = std::min(min_dist, count);
     }
 
     return min_dist;
@@ -203,7 +243,7 @@ unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bits
 //The main revision function
 //Original beliefs must contain equal length bit assignments representing the state of each variable
 //The formula must be in CNF format
-void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula) noexcept {
+void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula, const std::unordered_map<int32_t, unsigned long> orderings) noexcept {
     auto formula_states = generate_states(formula, original_beliefs.front().size());
     if (formula_states.empty()) {
         std::cerr << "Formula is unsatisfiable\n";
@@ -265,11 +305,19 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
             std::cout << "Done conversion\n";
 
             for (unsigned int i = 0; i < formula_states.size(); ++i) {
-                distance_map.emplace(hamming(formula_bits[i], belief_bits), formula_states[i]);
+                if (orderings.empty()) {
+                    distance_map.emplace(hamming(formula_bits[i], belief_bits), formula_states[i]);
+                } else {
+                    distance_map.emplace(pd_hamming_bitset(formula_bits[i], belief_bits, orderings), formula_states[i]);
+                }
             }
         } else {
             for (const auto& state : formula_states) {
-                distance_map.emplace(total_preorder(state, original_beliefs), state);
+                if (orderings.empty()) {
+                    distance_map.emplace(total_preorder(state, original_beliefs), state);
+                } else {
+                    distance_map.emplace(pd_hamming(state, original_beliefs, orderings), state);
+                }
             }
         }
 
