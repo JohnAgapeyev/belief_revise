@@ -88,8 +88,30 @@ int main(int argc, char **argv) {
             }
             std::cout << "\n";
         }
+        if (use_pd_ordering) {
+            if (pd_path == nullptr) {
+                std::cerr << "PD path was null when it shouldn't be\n";
+                return EXIT_FAILURE;
+            }
+            const auto orderings = read_pd_ordering(pd_path);
+            if (orderings.empty()) {
+                std::cerr << "Error reading pd ordering file\n";
+                return EXIT_FAILURE;
+            }
 
-        revise_beliefs(beliefs, formula);
+            if (!orderings.count(beliefs.size())) {
+                std::cerr << "PD orderings must contain assignments for all input variables\n";
+                return EXIT_FAILURE;
+            }
+
+            std::cout << "Variable orderings:\n";
+            for (const auto& p : orderings) {
+                std::cout << p.first << " " << p.second << "\n";
+            }
+            revise_beliefs(beliefs, formula, orderings);
+        } else {
+            revise_beliefs(beliefs, formula);
+        }
 
         return EXIT_SUCCESS;
     }
@@ -140,6 +162,22 @@ int main(int argc, char **argv) {
         formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
     }
 
+    std::cout << "Initial belief states:\n";
+    for (const auto& state : std::get<std::vector<std::vector<bool>>>(beliefs)) {
+        for (unsigned long i = 0; i < state.size(); ++i) {
+            std::cout << state[i];
+        }
+        std::cout << "\n";
+    }
+
+    std::cout << "Revision formula:\n";
+    for (const auto& clause : std::get<std::vector<std::vector<int32_t>>>(formula)) {
+        for (const auto term : clause) {
+            std::cout << term << " ";
+        }
+        std::cout << "\n";
+    }
+
     if (use_pd_ordering) {
         if (pd_path == nullptr) {
             std::cerr << "PD path was null when it shouldn't be\n";
@@ -160,25 +198,10 @@ int main(int argc, char **argv) {
         for (const auto& p : orderings) {
             std::cout << p.first << " " << p.second << "\n";
         }
+        revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula), orderings);
+    } else {
+        revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula));
     }
-
-    std::cout << "Initial belief states:\n";
-    for (const auto& state : std::get<std::vector<std::vector<bool>>>(beliefs)) {
-        for (unsigned long i = 0; i < state.size(); ++i) {
-            std::cout << state[i];
-        }
-        std::cout << "\n";
-    }
-
-    std::cout << "Revision formula:\n";
-    for (const auto& clause : std::get<std::vector<std::vector<int32_t>>>(formula)) {
-        for (const auto term : clause) {
-            std::cout << term << " ";
-        }
-        std::cout << "\n";
-    }
-
-    revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula));
 
     return EXIT_SUCCESS;
 }
