@@ -210,8 +210,7 @@ unsigned long pd_hamming(const std::vector<bool>& state, const std::vector<std::
         unsigned long count = 0;
 #pragma omp simd reduction(+: count)
         for (unsigned long i = 0; i < it->size(); ++i) {
-            assert(orderings.count(i + 1));
-            count += ((*it)[i] ^ state[i]) * (orderings.find(i + 1)->second);
+            count += ((*it)[i] ^ state[i]) * ((i + 1 > orderings.size()) ? 1 : orderings.find(i + 1)->second);
         }
         min_dist = std::min(min_dist, count);
     }
@@ -230,8 +229,7 @@ unsigned long pd_hamming_bitset(const std::bitset<512>& state, const std::vector
         const auto result = (state ^ *it);
 
         for (auto i = 0; i < 512; ++i) {
-            assert(orderings.count(i + 1));
-            count += result[i] * (orderings.find(i + 1)->second);
+            count += result[i] * ((i + 1lu > orderings.size()) ? 1 : orderings.find(i + 1)->second);
         }
 
         min_dist = std::min(min_dist, count);
@@ -323,6 +321,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
         //Grab every element whose key is equal to the lowest key in the map
         const auto min_dist = distance_map.lower_bound(0)->first;
+
+        std::cout << min_dist << "\n";
 
         //Add all the beliefs that have the minimal distance from the original ones
         const auto range = distance_map.equal_range(min_dist);

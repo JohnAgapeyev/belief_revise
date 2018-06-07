@@ -99,7 +99,14 @@ int main(int argc, char **argv) {
                 return EXIT_FAILURE;
             }
 
-            if (!orderings.count(beliefs.size())) {
+            int32_t max_variable = -1;
+            for (const auto& clause : beliefs) {
+                for (const auto term : clause) {
+                    max_variable = std::max(max_variable, std::abs(term));
+                }
+            }
+
+            if (!orderings.count(max_variable)) {
                 std::cerr << "PD orderings must contain assignments for all input variables\n";
                 return EXIT_FAILURE;
             }
@@ -189,7 +196,14 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        if (!orderings.count(std::get<std::vector<std::vector<bool>>>(beliefs).size())) {
+        int32_t max_variable = -1;
+        for (const auto& clause : std::get<std::vector<std::vector<bool>>>(beliefs)) {
+            for (const auto term : clause) {
+                max_variable = std::max(max_variable, std::abs(term));
+            }
+        }
+
+        if (!orderings.count(max_variable)) {
             std::cerr << "PD orderings must contain assignments for all input variables\n";
             return EXIT_FAILURE;
         }
