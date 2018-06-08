@@ -352,6 +352,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
         std::cout << "\n";
     }
 
+    print_formula_dnf(convert_to_num(revised_beliefs));
+
     for (const auto& first : revised_beliefs) {
         std::vector<int32_t> converted_term;
         for (const auto& second : revised_beliefs) {
@@ -402,6 +404,7 @@ minimize:
                 }
                 std::cout << "\n";
             }
+            print_formula_dnf(minimized);
             break;
         }
         for (auto& clause : minimized) {

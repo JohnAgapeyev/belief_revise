@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 #include "utils.h"
 
@@ -36,5 +37,25 @@ std::vector<std::vector<int32_t>> convert_to_num(const std::vector<std::vector<b
     }
 
     return output;
+}
+
+void print_formula_dnf(const std::vector<std::vector<int32_t>>& formula) noexcept {
+    for (const auto& clause : formula) {
+        std::cout << '(';
+        for (const auto term : clause) {
+            if (term < 0) {
+                std::cout << "not ";
+            }
+            std::cout << std::abs(term);
+            if (term != clause.back()) {
+                std::cout << " and ";
+            }
+        }
+        std::cout << ')';
+        if (clause != formula.back()) {
+            std::cout << " or ";
+        }
+    }
+    std::cout << std::endl;
 }
 
