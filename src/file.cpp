@@ -298,6 +298,10 @@ std::unordered_map<int32_t, unsigned long> read_pd_ordering(const char *path) no
         }
     }
 
+    for (auto& p : orderings) {
+        p.second = max_variable - p.second;
+    }
+
     return orderings;
 }
 
