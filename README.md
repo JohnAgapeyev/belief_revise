@@ -84,3 +84,19 @@ In order to add a specialization, there are 3 changes one must make.
 
 This will ensure that your function can be specialized in its implementation, if a different data format is required, and it's cheaper to convert before the function, rather than inside it.
 
+### Paramaterized Difference Orderings
+If one wishes to not modify the codebase, the application does accept parameterized difference orderings as a way to specify custom pre-orders purely through file input.
+The input file is provided through the `-p` and `--pd-ordering` flags.
+Input is given by lines of space separated positive integers, not including zero.
+Each integer presents an input variable of that corresponding number.
+All variables must be assigned, and the total number of variables must be equal to the number of variables input from the initial belief state.
+If the same variable is used multiple times in the orderings, the behaviour is undefined.
+Each line of the file represents a given priority, with the first line having the highest priority, and therefore, the least likely to change, with priority descending linearly with each line.
+Each line contains 1 or more space separated numbers that detail equivalency between the variables.
+An example file input would be as follows:
+```
+1 2 4
+3 5
+6
+```
+Which would say variables 1, 2, and 4 are equal in relation to each other, but are higher priority than 3 and 5, which are also higher priority than 6.
