@@ -1,20 +1,8 @@
-%% LyX 2.3.0 created this file.  For more info, see http://www.lyx.org/.
-%% Do not edit unless you really know what you are doing.
 \documentclass[english]{article}
 \usepackage[T1]{fontenc}
 \usepackage[latin9]{inputenc}
 \usepackage{float}
-
-\makeatletter
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
-\floatstyle{ruled}
-\newfloat{algorithm}{tbp}{loa}
-\providecommand{\algorithmname}{Algorithm}
-\floatname{algorithm}{\protect\algorithmname}
-
-\makeatother
-
+\usepackage{algorithm}
 \usepackage{babel}
 \begin{document}
 
@@ -110,6 +98,27 @@ different representations of input data for the same problem. Internally,
 all forms of data are convertable to each other, allowing flexibility
 in the interface, without compromising efficiency in the solver implementation. 
 
+\subsection{Parameterized Difference Orderings}
+
+We optionally accept parameterized difference orderings in order to
+facilitate arbitrary total pre-orders of the belief states. A parametrized
+difference ordering is an ordering over every input variable, that
+establishes the ``plausibility'' of each input relative to each
+other. This allows one to encode meaning behind individual variables
+and their relational precedence. If one variable is more likely to
+changed than others, then the parameterized difference ordering will
+allow that to be encoded and reflected in the resulting belief state.
+For example, if $ABC$ is the initial belief set, the revision formula
+is $\overline{A}+\overline{B}+\overline{C}$, and the orderings are
+$(A=B)<C$, then the Dalal revision operator would result in a revised
+belief state of $\overline{A}BC+A\overline{B}C+AB\overline{C}$, whereas
+the parameterized difference operator would result in a belief state
+of $AB\overline{C}$. Notice how the Dalal operator treats every input
+variable as equally likely to be modified, and so outputs each possible
+term with the minimum number of changes, whereas the parameterized
+difference operator treats $A$ and $B$ as being less likely to change
+than $C$, so outputs only a single clause.
+
 \section{Revision}
 
 Belief Revision is carried out with the following algorithm:
@@ -133,11 +142,12 @@ Belief Revision is carried out with the following algorithm:
 the formula $\phi$.
 \item distance() calculates the total pre-order of the state $S_{i}$ compared
 to the existing beliefs $K$. Our solver natively supports Hamming
-Distance, though it can use other pre-orders with minor modifications.
+Distance, as well as parameterized difference operators.
 \end{enumerate}
 Our use of an All-SAT solver is characterized in the generateStates()
-function. Since we require the set of all satisfying assignments to
-a list of variables given by some formula $\phi$, an All-SAT solver
+function. This is the only portion of the application that relies
+on an All-SAT solver. Since we require the set of all satisfying assignments
+to a list of variables given by some formula $\phi$, an All-SAT solver
 works well, and can we can use algorithmic advances in such a solver
 in order to increase efficiency in Belief Revision. The pseudocode
 for generateStates() is given below:
@@ -180,16 +190,80 @@ $S^{i}$\}}
 \end{enumerate}
 \end{algorithm}
 
-Primarily, the state generation is done by the All-SAT solver. The
-remainder of the algorithm is for padding the resulting states. For
-the total pre-order to function correctly, the generated states must
-contain the same number of variables as the comparison states. This
-discrepancy is what prompts the remainder of the algorithm, which
+\noindent Primarily, the state generation is done by the All-SAT solver.
+The remainder of the algorithm is for padding the resulting states.
+For the total pre-order to function correctly, the generated states
+must contain the same number of variables as the comparison states.
+This discrepancy is what prompts the remainder of the algorithm, which
 is essentially a bitwise brute-force of the remaining variables. This
 creates every possible satisfying state equal to the length of the
 original beliefs. A difference in the generated and output states
 is a result of the provided formula not containing all possible variables
 in its definition.
+
+\subsection{Parameterized Difference Orderings}
+
+The implementation of parameterized difference orderings is a minor
+variation of the existing Hamming Distance algorithm. For posterity,
+the pseudocode for Hamming Distance is given below:
+
+\begin{algorithm}[H]
+\caption{Hamming Distance}
+
+\textbf{function }HammingDistance($S,K$)
+\begin{enumerate}
+\item $dist=$\emph{INT\_MAX}
+\item \textbf{for $K_{i}$ in $K$ do}
+\begin{enumerate}
+\item $count=0$
+\item $diff=S$ \textasciicircum{} $K_{i}$
+\item \textbf{while $diff\neq0$ do}
+\begin{enumerate}
+\item $count=count+1$
+\item $diff=diff\;\&\;diff-1$
+\end{enumerate}
+\item \textbf{end while}
+\item $dist=min(dist,\:count)$
+\end{enumerate}
+\item \textbf{end for}
+\item \textbf{return }$dist$
+\end{enumerate}
+\end{algorithm}
+
+\noindent The following pseudocode is the modified Hamming Distance
+algorithm to support parameterized difference orderings.
+
+\begin{algorithm}[H]
+
+\caption{Parameterized Difference Hamming Distance}
+
+\textbf{function }PD\_Hamming($S,K,O$)
+\begin{enumerate}
+\item $dist=$\emph{INT\_MAX}
+\item \textbf{for $K_{i}$ in $K$ do}
+\begin{enumerate}
+\item $count=0$
+\item $diff=S$ \textasciicircum{} $K_{i}$
+\item $bitnum=0$
+\item \textbf{while $diff\neq0$ do}
+\begin{enumerate}
+\item $count=count+O[bitnum]$
+\item $diff=diff\;\&\;diff-1$
+\item $bitnum=bitnum+1$
+\end{enumerate}
+\item \textbf{end while}
+\item $dist=min(dist,\:count)$
+\end{enumerate}
+\item \textbf{end for}
+\item \textbf{return }$dist$
+\end{enumerate}
+\end{algorithm}
+
+\noindent Notice how the counter of different bits is now a variable
+increment, based on the weight of the specific bit. Variables are
+assigned weights inversely related to their preference. If the input
+ordering was $a<b<c$, with $a$ being the least likely to change/the
+most plausible variable, then the orderings would look like: $\{a=3;\,b=2;\,c=1\}$. 
 
 \section{Design Decisions}
 
