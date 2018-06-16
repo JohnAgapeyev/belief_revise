@@ -4,6 +4,7 @@
 \usepackage{float}
 \usepackage{algorithm}
 \usepackage{babel}
+
 \begin{document}
 
 \title{Efficient Belief Revision with All-SAT}
@@ -265,6 +266,87 @@ assigned weights inversely related to their preference. If the input
 ordering was $a<b<c$, with $a$ being the least likely to change/the
 most plausible variable, then the orderings would look like: $\{a=3;\,b=2;\,c=1\}$. 
 
+\subsection{Minimization}
+
+Our solver also supports minimization of the output states, in order
+to simplify the resulting formula. We use the tabular method of reduction
+for these formulas, which requires that any 2 formulas differ in exactly
+one assignment of the same variable, in order to become simplified.
+
+\begin{algorithm}[H]
+
+\caption{Possibility of minimization}
+
+\textbf{function }minimization\_possible($K$)
+\begin{enumerate}
+\item \textbf{for $K_{i}$ in $K$ do}
+\begin{enumerate}
+\item \textbf{for $K_{j}$ in $K$ do}
+\begin{enumerate}
+\item \textbf{if }$K_{i}=K_{j}$ \textbf{then continue}
+\item \textbf{if }$HammingDistance(K_{i},K_{j})=1$\textbf{ then return
+}true
+\end{enumerate}
+\item \textbf{end for}
+\end{enumerate}
+\item \textbf{end for}
+\item \textbf{return }false
+\end{enumerate}
+\end{algorithm}
+
+Minimization is implemented as an $O(N^{2})$ algorithm for both time
+and space, so it is beneficial to avoid minimzation if it is not possible.
+
+\begin{algorithm}[H]
+
+\caption{Formula Minimization}
+
+\textbf{function }minimize($K$)
+\begin{enumerate}
+\item \textbf{for $K_{i}$ in $K$ do}
+\begin{enumerate}
+\item \textbf{for $K_{j}$ in $K$ do}
+\begin{enumerate}
+\item \textbf{if }$K_{i}=K_{j}$ \textbf{then continue}
+\item \textbf{if }$HammingDistance(K_{i},K_{j})\neq1$\textbf{ then continue}
+\item $K_{i}=\{x:GetDifference(K_{i})\neq x\}$
+\end{enumerate}
+\item \textbf{end for}
+\end{enumerate}
+\item \textbf{end for}
+\item $sort(K)$
+\item $removeDuplicates(K)$
+\item $K=\{x\in K:\forall y\in K,|x\subseteq y|=0\}$
+\item \textbf{return $K$}
+\end{enumerate}
+\end{algorithm}
+
+The core of minimization occurs in the $O(N^{2})$ loop, where clauses
+differ in 1 exact assignment, that differing assignment term is then
+removed from both clauses. The \emph{GetDifference()} function is
+a simplification. The implementation writes the \emph{HammingDistance()}
+function inline, and uses a counter to keep track the position where
+the last difference occured. The function call can be treated as a
+constant-time lookup, without any further consideration. At the end
+of the loop, the minimized formula is sorted by its clauses, and then
+any duplicate clauses are removed. The duplicates are caused by the
+commutative property, where the comparison loop will check both of
+the differing clauses. For the implementation, it is cheaper to remove
+duplicates afterwords, rather than during the loop. Sorting the formula
+clauses is a requirement of the removing duplicates algorithm. One
+may assume that \emph{sort() }is $O(n\log n)$ and that \emph{removeDuplicates()
+is }$O(N)$. The final step is another simplifcation, that is normally
+not covered by the initial comparison loop. In this step, all elements
+which are a superset of another element in the function clauses are
+removed. Since the formula is in DNF, any clause that is a subset
+of another clause shares the same truth value. As such, having a clause
+that is a superset does not change its truth value with the extra
+assignments, and is made redundant by its subset counterpart. Therefore,
+these supersets are removed from the formula, to ensure maximum minimization.
+This function represents a single step of formula minimization, but
+the implementation repeats this process until the formula can no longer
+be minimized.\emph{ }
+
 \section{Design Decisions}
 
 Our goal with this solver is in creating a highly optimized and efficient
@@ -313,7 +395,7 @@ can be executed in parallel with minimal synchronization. The primary
 limiting factor for our solver is the fundamental scale of solutions
 returned from the All-SAT solver. When testing with a variety of 3-SAT
 formula inputs with 100 variables, the range of possible solutions
-ranged from 200 to well over 7000, depending on the individual input.
+ranged from 32 to well over 460000, depending on the individual input.
 When attempting to solve formulas with 250 variables, the total number
 of solutions increased to over 38 million, and required more than
 40 GB on disk. When the solutions are padded properly to match the
