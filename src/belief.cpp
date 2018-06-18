@@ -270,7 +270,7 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
         std::multimap<unsigned long, std::vector<bool>> distance_map;
 
         //Specialization of hamming distance to efficiently use bitsets
-        if (total_preorder == decltype(total_preorder)(state_difference)) {
+        if (total_preorder == decltype(total_preorder)(state_difference) && formula_states.front().size() <= 512) {
             //512 bits because that is infeasible to compute
             //Could do 256, but theoretically, I might be able to do that
             std::vector<std::bitset<512>> formula_bits{formula_states.size(), {}, std::allocator<std::bitset<512>>()};
