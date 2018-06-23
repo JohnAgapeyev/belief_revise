@@ -339,6 +339,12 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
     if (verbose) {
         for (const auto& belief : revised_beliefs) {
+            for (const auto b : belief) {
+                std::cout << b;
+            }
+            std::cout << "\n";
+        }
+        for (const auto& belief : revised_beliefs) {
             for (unsigned long i = 0; i < belief.size(); ++i) {
                 int32_t term = i + 1;
                 if (!belief[i]) {
