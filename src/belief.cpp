@@ -20,6 +20,7 @@
 #include <omp.h>
 #include "belief.h"
 #include "utils.h"
+#include "interactive.h"
 
 /*
  * This is an example preordering that one can write, if they desire something other than the hamming distance.
@@ -335,21 +336,18 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
     //We're done
     std::cout << "Revised belief set:\n";
-    for (const auto& belief : revised_beliefs) {
-        for (const auto b : belief) {
-            std::cout << b;
-        }
-        std::cout << "\n";
-    }
-    for (const auto& belief : revised_beliefs) {
-        for (unsigned long i = 0; i < belief.size(); ++i) {
-            int32_t term = i + 1;
-            if (!belief[i]) {
-                term *= -1;
+
+    if (verbose) {
+        for (const auto& belief : revised_beliefs) {
+            for (unsigned long i = 0; i < belief.size(); ++i) {
+                int32_t term = i + 1;
+                if (!belief[i]) {
+                    term *= -1;
+                }
+                std::cout << term << " ";
             }
-            std::cout << term << " ";
+            std::cout << "\n";
         }
-        std::cout << "\n";
     }
 
     print_formula_dnf(convert_to_num(revised_beliefs));
@@ -398,11 +396,13 @@ minimize:
             minimized = minimize_output(minimized);
             //Print minimized
             std::cout << "Minimized states:\n";
-            for (const auto& belief : minimized) {
-                for (const auto term : belief) {
-                    std::cout << term << " ";
+            if (verbose) {
+                for (const auto& belief : minimized) {
+                    for (const auto term : belief) {
+                        std::cout << term << " ";
+                    }
+                    std::cout << "\n";
                 }
-                std::cout << "\n";
             }
             print_formula_dnf(minimized);
             break;
