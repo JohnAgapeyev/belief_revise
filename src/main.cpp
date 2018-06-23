@@ -14,6 +14,7 @@ static struct option long_options[] = {
     {"interactive", no_argument,       0, 'i'},
     {"pd-ordering", required_argument, 0, 'p'},
     {"dalal",       no_argument,       0, 'd'},
+    {"verbose",     no_argument,       0, 'v'},
     {0,         0,                 0, 0}
 };
 
@@ -25,6 +26,7 @@ static struct option long_options[] = {
                 "\t [f]ormula               - The file path of the revision formula\n"\
                 "\t [p]d-ordering           - The file path of the pd orderings\n"\
                 "\t [d]alal                 - Use the Dalal pre-order (Hamming distance)\n"\
+                "\t [v]erbose               - Output in verbose mode\n"\
                 "\t [h]elp                  - this message\n"\
                 "If interactive mode is not specified, the belief_set and formula paths must be provided\n"\
                 );\
@@ -39,7 +41,7 @@ int main(int argc, char **argv) {
     for (;;) {
         int c;
         int option_index = 0;
-        if ((c = getopt_long(argc, argv, "b:f:ihp:d", long_options, &option_index)) == -1) {
+        if ((c = getopt_long(argc, argv, "b:f:ihp:dv", long_options, &option_index)) == -1) {
             break;
         }
         switch (c) {
@@ -59,6 +61,9 @@ int main(int argc, char **argv) {
                 use_pd_ordering = true;
                 pd_path = optarg;
                 break;
+            case 'v':
+                verbose = true;
+                break;
             case 'h':
                 [[fallthrough]];
             case '?':
@@ -73,20 +78,22 @@ int main(int argc, char **argv) {
         std::cout << "Entering interactive mode\n";
         auto [beliefs, formula] = run_interactive_mode();
 
-        std::cout << "Initial belief states:\n";
-        for (const auto& state : beliefs) {
-            for (unsigned long i = 0; i < state.size(); ++i) {
-                std::cout << state[i];
+        if (verbose) {
+            std::cout << "Initial belief states:\n";
+            for (const auto& state : beliefs) {
+                for (unsigned long i = 0; i < state.size(); ++i) {
+                    std::cout << state[i];
+                }
+                std::cout << "\n";
             }
-            std::cout << "\n";
-        }
 
-        std::cout << "Revision formula:\n";
-        for (const auto& clause : formula) {
-            for (const auto term : clause) {
-                std::cout << term << " ";
+            std::cout << "Revision formula:\n";
+            for (const auto& clause : formula) {
+                for (const auto term : clause) {
+                    std::cout << term << " ";
+                }
+                std::cout << "\n";
             }
-            std::cout << "\n";
         }
         if (use_pd_ordering) {
             if (pd_path == nullptr) {
@@ -110,10 +117,11 @@ int main(int argc, char **argv) {
                 std::cerr << "PD orderings must contain assignments for all input variables\n";
                 return EXIT_FAILURE;
             }
-
-            std::cout << "Variable orderings:\n";
-            for (const auto& p : orderings) {
-                std::cout << p.first << " " << p.second << "\n";
+            if (verbose) {
+                std::cout << "Variable orderings:\n";
+                for (const auto& p : orderings) {
+                    std::cout << p.first << " " << p.second << "\n";
+                }
             }
             revise_beliefs(beliefs, formula, orderings);
         } else {
@@ -168,23 +176,22 @@ int main(int argc, char **argv) {
         //Convert that DNF into CNF
         formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
     }
-
-    std::cout << "Initial belief states:\n";
-    for (const auto& state : std::get<std::vector<std::vector<bool>>>(beliefs)) {
-        for (unsigned long i = 0; i < state.size(); ++i) {
-            std::cout << state[i];
+    if (verbose) {
+        std::cout << "Initial belief states:\n";
+        for (const auto& state : std::get<std::vector<std::vector<bool>>>(beliefs)) {
+            for (unsigned long i = 0; i < state.size(); ++i) {
+                std::cout << state[i];
+            }
+            std::cout << "\n";
         }
-        std::cout << "\n";
-    }
-
-    std::cout << "Revision formula:\n";
-    for (const auto& clause : std::get<std::vector<std::vector<int32_t>>>(formula)) {
-        for (const auto term : clause) {
-            std::cout << term << " ";
+        std::cout << "Revision formula:\n";
+        for (const auto& clause : std::get<std::vector<std::vector<int32_t>>>(formula)) {
+            for (const auto term : clause) {
+                std::cout << term << " ";
+            }
+            std::cout << "\n";
         }
-        std::cout << "\n";
     }
-
     if (use_pd_ordering) {
         if (pd_path == nullptr) {
             std::cerr << "PD path was null when it shouldn't be\n";
@@ -208,9 +215,11 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        std::cout << "Variable orderings:\n";
-        for (const auto& p : orderings) {
-            std::cout << p.first << " " << p.second << "\n";
+        if (verbose) {
+            std::cout << "Variable orderings:\n";
+            for (const auto& p : orderings) {
+                std::cout << p.first << " " << p.second << "\n";
+            }
         }
         revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula), orderings);
     } else {

@@ -10,6 +10,8 @@
 #include "interactive.h"
 #include "file.h"
 
+bool verbose = false;
+
 //Wrapper function
 std::string get_user_input() noexcept {
     std::string line;

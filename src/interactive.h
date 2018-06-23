@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <utility>
 
+extern bool verbose;
+
 //Wrapper function
 std::string get_user_input() noexcept;
 
