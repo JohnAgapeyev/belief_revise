@@ -378,7 +378,7 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 minimize:
     std::cout << "Minimization is possible\n";
 
-    std::cout << "Initial pre-minized state size: " << revised_beliefs.size() << "\n";
+    std::cout << "Initial pre-minimized state size: " << revised_beliefs.size() << "\n";
 
     auto minimized = minimize_output(convert_to_num(revised_beliefs));
     for (;;) {
@@ -478,7 +478,7 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
     output.erase(std::unique(output.begin(), output.end()), output.end());
     output.erase(std::remove_if(output.begin(), output.end(), [](const auto& clause){return clause.empty();}), output.end());
 
-    //Remove supersets of existing clauses
+    //Remove subsets of existing clauses
     //This results in smaller end results, but doesn't really affect the initial state increase
     output.erase(std::remove_if(output.begin(), output.end(),
                 [&] (const auto& clause) {
@@ -486,7 +486,7 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
                         if (clause == other || other.empty()) {
                             continue;
                         }
-                        if (std::includes(clause.cbegin(), clause.cend(), other.cbegin(), other.cend())) {
+                        if (std::includes(other.cbegin(), other.cend(), clause.cbegin(), clause.cend())) {
                             return true;
                         }
                     }
