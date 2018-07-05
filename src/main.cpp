@@ -15,6 +15,7 @@ static struct option long_options[] = {
     {"pd-ordering", required_argument, 0, 'p'},
     {"dalal",       no_argument,       0, 'd'},
     {"verbose",     no_argument,       0, 'v'},
+    {"output",      required_argument, 0, 'o'},
     {0,         0,                 0, 0}
 };
 
@@ -27,6 +28,7 @@ static struct option long_options[] = {
                 "\t [p]d-ordering           - The file path of the pd orderings\n"\
                 "\t [d]alal                 - Use the Dalal pre-order (Hamming distance)\n"\
                 "\t [v]erbose               - Output in verbose mode\n"\
+                "\t [o]utput                - File to output revised beliefse to\n"\
                 "\t [h]elp                  - this message\n"\
                 "If interactive mode is not specified, the belief_set and formula paths must be provided\n"\
                 );\
@@ -36,12 +38,13 @@ int main(int argc, char **argv) {
     const char *belief_path = nullptr;
     const char *formula_path = nullptr;
     const char *pd_path = nullptr;
+    const char *output_file = nullptr;
     bool is_interactive = false;
     bool use_pd_ordering = false;
     for (;;) {
         int c;
         int option_index = 0;
-        if ((c = getopt_long(argc, argv, "b:f:ihp:dv", long_options, &option_index)) == -1) {
+        if ((c = getopt_long(argc, argv, "b:f:ihp:dvo:", long_options, &option_index)) == -1) {
             break;
         }
         switch (c) {
@@ -63,6 +66,9 @@ int main(int argc, char **argv) {
                 break;
             case 'v':
                 verbose = true;
+                break;
+            case 'o':
+                output_file = optarg;
                 break;
             case 'h':
                 [[fallthrough]];
@@ -123,9 +129,9 @@ int main(int argc, char **argv) {
                     std::cout << p.first << " " << p.second << "\n";
                 }
             }
-            revise_beliefs(beliefs, formula, orderings);
+            revise_beliefs(beliefs, formula, orderings, output_file);
         } else {
-            revise_beliefs(beliefs, formula);
+            revise_beliefs(beliefs, formula, {}, output_file);
         }
 
         return EXIT_SUCCESS;
@@ -221,9 +227,9 @@ int main(int argc, char **argv) {
                 std::cout << p.first << " " << p.second << "\n";
             }
         }
-        revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula), orderings);
+        revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula), orderings, output_file);
     } else {
-        revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula));
+        revise_beliefs(std::get<std::vector<std::vector<bool>>>(beliefs), std::get<std::vector<std::vector<int32_t>>>(formula), {}, output_file);
     }
 
     return EXIT_SUCCESS;

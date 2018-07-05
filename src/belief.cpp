@@ -242,7 +242,7 @@ unsigned long pd_hamming_bitset(const std::bitset<512>& state, const std::vector
 //The main revision function
 //Original beliefs must contain equal length bit assignments representing the state of each variable
 //The formula must be in CNF format
-void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula, const std::unordered_map<int32_t, unsigned long> orderings) noexcept {
+void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula, const std::unordered_map<int32_t, unsigned long> orderings, const char *output_file) noexcept {
     auto formula_states = generate_states(formula, original_beliefs.front().size());
     if (formula_states.empty()) {
         std::cerr << "Formula is unsatisfiable\n";
@@ -353,6 +353,16 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
                 std::cout << term << " ";
             }
             std::cout << "\n";
+        }
+    }
+
+    if (output_file) {
+        std::ofstream ofs{output_file};
+        for (const auto& clause : convert_to_num(revised_beliefs)) {
+            for (const auto term : clause) {
+                ofs << term << " ";
+            }
+            ofs << "\n";
         }
     }
 
