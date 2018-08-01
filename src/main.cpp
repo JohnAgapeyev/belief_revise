@@ -179,8 +179,11 @@ int main(int argc, char **argv) {
             //Get DNF from raw data
             formula = convert_raw(std::get<std::vector<std::vector<bool>>>(formula));
         }
-        //Convert that DNF into CNF
-        formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
+        //Conversion of a single term in DNF is fully equivalent to CNF
+        if (std::get<std::vector<std::vector<int32_t>>>(formula).size() > 1) {
+            //Convert that DNF into CNF
+            formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
+        }
     }
     if (verbose) {
         std::cout << "Initial belief states:\n";
