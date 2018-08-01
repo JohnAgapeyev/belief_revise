@@ -149,6 +149,10 @@ std::pair<type_format, std::variant<std::vector<std::vector<bool>>, std::vector<
 std::vector<std::vector<int32_t>> convert_normal_forms(const std::vector<std::vector<int32_t>>& normal_clauses) noexcept {
     std::vector<std::vector<int32_t>> result;
 
+    if (normal_clauses.empty()) {
+        return normal_clauses;
+    }
+
     assert(normal_clauses.size() >= 2);
 
     if (normal_clauses.size() == 2) {
