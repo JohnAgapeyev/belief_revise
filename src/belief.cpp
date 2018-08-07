@@ -364,6 +364,7 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
             }
             ofs << "\n";
         }
+        return;
     }
 
     print_formula_dnf(convert_to_num(revised_beliefs));
