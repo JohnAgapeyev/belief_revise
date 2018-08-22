@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 #include "utils.h"
 
@@ -39,23 +40,26 @@ std::vector<std::vector<int32_t>> convert_to_num(const std::vector<std::vector<b
     return output;
 }
 
-void print_formula_dnf(const std::vector<std::vector<int32_t>>& formula) noexcept {
+std::string print_formula_dnf(const std::vector<std::vector<int32_t>>& formula) noexcept {
+    std::stringstream ss;
     for (const auto& clause : formula) {
-        std::cout << '(';
+        ss << '(';
         for (const auto term : clause) {
             if (term < 0) {
-                std::cout << "not ";
+                ss << "not ";
             }
-            std::cout << std::abs(term);
+            ss << std::abs(term);
             if (term != clause.back()) {
-                std::cout << " and ";
+                ss << " and ";
             }
         }
-        std::cout << ')';
+        ss << ')';
         if (clause != formula.back()) {
-            std::cout << " or ";
+            ss << " or ";
         }
     }
-    std::cout << std::endl;
+    ss << std::endl;
+    std::cout << ss.str();
+    return ss.str();
 }
 
