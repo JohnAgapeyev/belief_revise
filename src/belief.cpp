@@ -1,32 +1,34 @@
-#include <vector>
-#include <cstdint>
 #include <algorithm>
+#include <bitset>
 #include <cassert>
 #include <climits>
-#include <map>
-#include <iostream>
 #include <cmath>
-#include <bitset>
+#include <cstdint>
+#include <fcntl.h>
 #include <fstream>
-#include <sstream>
+#include <functional>
+#include <iostream>
 #include <iterator>
-#include <unistd.h>
+#include <map>
+#include <omp.h>
+#include <sstream>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <functional>
+#include <unistd.h>
 #include <unordered_map>
-#include <omp.h>
+#include <vector>
+
 #include "belief.h"
-#include "utils.h"
 #include "interactive.h"
+#include "utils.h"
 
 /*
  * This is an example preordering that one can write, if they desire something other than the hamming distance.
  * If you desire a specialization of this function for performance, see the README for details.
  */
-unsigned long example_preorder(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
+unsigned long example_preorder(
+        const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
     if (state.size() < 3) {
         return 2;
     }
@@ -42,10 +44,12 @@ unsigned long example_preorder(const std::vector<bool>& state, const std::vector
 }
 
 //THIS IS WHERE THE PRE-ORDER IS ASSIGNED, CHANGE THIS IF YOU WANT A DIFFERENT PRE-ORDER
-std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)> total_preorder = state_difference;
+std::function<unsigned long(const std::vector<bool>&, const std::vector<std::vector<bool>>&)>
+        total_preorder = state_difference;
 
 //Helper function that determines if a given state satisfies the formula
-static bool satisfies(const std::vector<bool>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
+static bool satisfies(const std::vector<bool>& state,
+        const std::vector<std::vector<int32_t>>& clause_list) noexcept {
     for (const auto& clause : clause_list) {
         bool term_false = true;
         for (const auto term : clause) {
@@ -62,7 +66,8 @@ static bool satisfies(const std::vector<bool>& state, const std::vector<std::vec
 }
 
 //Helper function that determines if a given state satisfies the formula
-static bool satisfies(const std::bitset<64>& state, const std::vector<std::vector<int32_t>>& clause_list) noexcept {
+static bool satisfies(const std::bitset<64>& state,
+        const std::vector<std::vector<int32_t>>& clause_list) noexcept {
     for (const auto& clause : clause_list) {
         bool term_false = true;
         for (const auto term : clause) {
@@ -80,7 +85,8 @@ static bool satisfies(const std::bitset<64>& state, const std::vector<std::vecto
 
 //Generates all possible states given a clause list and the final belief length
 //This grabs the results output from the All-SAT solver, and brute-force pads each output up to belief_length bits
-std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list, const unsigned long belief_length) noexcept {
+std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int32_t>>& clause_list,
+        const unsigned long belief_length) noexcept {
     for (const auto& clause : clause_list) {
         for (const auto term : clause) {
             if (std::abs(term) > belief_length) {
@@ -91,8 +97,8 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         }
     }
 
-    const char *input_filename = ".tmp.input";
-    const char *output_filename = ".tmp.output";
+    const char* input_filename = ".tmp.input";
+    const char* output_filename = ".tmp.output";
 
     creat(input_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     creat(output_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
@@ -125,10 +131,9 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 
         std::vector<int32_t> clause_tokens;
 
-        clause_tokens.assign(std::istream_iterator<int32_t>(iss),
-                std::istream_iterator<int32_t>());
-        clause_tokens.erase(std::remove(clause_tokens.begin(), clause_tokens.end(), 0),
-                clause_tokens.end());
+        clause_tokens.assign(std::istream_iterator<int32_t>(iss), std::istream_iterator<int32_t>());
+        clause_tokens.erase(
+                std::remove(clause_tokens.begin(), clause_tokens.end(), 0), clause_tokens.end());
         clause_tokens.shrink_to_fit();
 
         if (clause_tokens.empty()) {
@@ -147,8 +152,10 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
             converted_state[std::abs(term) - 1] = (term > 0);
         }
         //Pad the state up to the length of the beliefs
-#pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state) schedule(static)
-        for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back()))); ++mask) {
+#pragma omp parallel for shared(generated_states, clause_list) firstprivate(converted_state) \
+        schedule(static)
+        for (uint64_t mask = 0; mask < (1ull << (belief_length - std::abs(clause.back())));
+                ++mask) {
             std::bitset<64> bs{mask};
 
             //Add the bits to the end of the state
@@ -169,15 +176,16 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
 }
 
 //Caluclate the hamming distance between a state and the set of beliefs
-unsigned long state_difference(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
+unsigned long state_difference(
+        const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set) {
     unsigned long min_dist = ULONG_MAX;
 
-#pragma omp parallel for reduction(min: min_dist) schedule(static)
+#pragma omp parallel for reduction(min : min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         assert(state.size() == it->size());
 
         unsigned long count = 0;
-#pragma omp simd reduction(+: count)
+#pragma omp simd reduction(+ : count)
         for (unsigned long i = 0; i < it->size(); ++i) {
             count += (*it)[i] ^ state[i];
         }
@@ -189,10 +197,11 @@ unsigned long state_difference(const std::vector<bool>& state, const std::vector
 
 //Same as the other hamming distance formula, but uses a bitset for MUCH faster evaluation
 //Must be different name since overloading functions messes with function comparisons in order to actually call this function
-unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
+unsigned long hamming(
+        const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
-#pragma omp parallel for reduction(min: min_dist) schedule(static)
+#pragma omp parallel for reduction(min : min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         assert(state.size() == it->size());
         min_dist = std::min(min_dist, (state ^ *it).count());
@@ -201,17 +210,20 @@ unsigned long hamming(const std::bitset<512>& state, const std::vector<std::bits
     return min_dist;
 }
 
-unsigned long pd_hamming(const std::vector<bool>& state, const std::vector<std::vector<bool>>& belief_set, const std::unordered_map<int32_t, unsigned long>& orderings) {
+unsigned long pd_hamming(const std::vector<bool>& state,
+        const std::vector<std::vector<bool>>& belief_set,
+        const std::unordered_map<int32_t, unsigned long>& orderings) {
     unsigned long min_dist = ULONG_MAX;
 
-#pragma omp parallel for reduction(min: min_dist) schedule(static)
+#pragma omp parallel for reduction(min : min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         assert(state.size() == it->size());
 
         unsigned long count = 0;
-#pragma omp simd reduction(+: count)
+#pragma omp simd reduction(+ : count)
         for (unsigned long i = 0; i < it->size(); ++i) {
-            count += ((*it)[i] ^ state[i]) * ((i + 1 > orderings.size()) ? 1 : orderings.find(i + 1)->second);
+            count += ((*it)[i] ^ state[i])
+                    * ((i + 1 > orderings.size()) ? 1 : orderings.find(i + 1)->second);
         }
         min_dist = std::min(min_dist, count);
     }
@@ -219,10 +231,12 @@ unsigned long pd_hamming(const std::vector<bool>& state, const std::vector<std::
     return min_dist;
 }
 
-unsigned long pd_hamming_bitset(const std::bitset<512>& state, const std::vector<std::bitset<512>>& belief_set, const std::unordered_map<int32_t, unsigned long>& orderings) noexcept {
+unsigned long pd_hamming_bitset(const std::bitset<512>& state,
+        const std::vector<std::bitset<512>>& belief_set,
+        const std::unordered_map<int32_t, unsigned long>& orderings) noexcept {
     unsigned long min_dist = ULONG_MAX;
 
-#pragma omp parallel for reduction(min: min_dist) schedule(static)
+#pragma omp parallel for reduction(min : min_dist) schedule(static)
     for (auto it = belief_set.cbegin(); it < belief_set.cend(); ++it) {
         assert(state.size() == it->size());
 
@@ -242,7 +256,10 @@ unsigned long pd_hamming_bitset(const std::bitset<512>& state, const std::vector
 //The main revision function
 //Original beliefs must contain equal length bit assignments representing the state of each variable
 //The formula must be in CNF format
-void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std::vector<std::vector<int32_t>>& formula, const std::unordered_map<int32_t, unsigned long> orderings, const char *output_file) noexcept {
+std::vector<std::vector<int32_t>> revise_beliefs(std::vector<std::vector<bool>>& original_beliefs,
+        const std::vector<std::vector<int32_t>>& formula,
+        const std::unordered_map<int32_t, unsigned long> orderings,
+        const char* output_file) noexcept {
     auto formula_states = generate_states(formula, original_beliefs.front().size());
     if (formula_states.empty()) {
         std::cerr << "Formula is unsatisfiable\n";
@@ -262,7 +279,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
 
     std::cout << "Done sorting\n";
 
-    std::set_intersection(formula_states.cbegin(), formula_states.cend(), original_beliefs.cbegin(), original_beliefs.cend(), std::back_inserter(revised_beliefs));
+    std::set_intersection(formula_states.cbegin(), formula_states.cend(), original_beliefs.cbegin(),
+            original_beliefs.cend(), std::back_inserter(revised_beliefs));
 
     std::cout << "Done intersection\n";
 
@@ -271,10 +289,12 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
         std::multimap<unsigned long, std::vector<bool>> distance_map;
 
         //Specialization of hamming distance to efficiently use bitsets
-        if (total_preorder == decltype(total_preorder)(state_difference) && formula_states.front().size() <= 512) {
+        if (total_preorder == decltype(total_preorder)(state_difference)
+                && formula_states.front().size() <= 512) {
             //512 bits because that is infeasible to compute
             //Could do 256, but theoretically, I might be able to do that
-            std::vector<std::bitset<512>> formula_bits{formula_states.size(), {}, std::allocator<std::bitset<512>>()};
+            std::vector<std::bitset<512>> formula_bits{
+                    formula_states.size(), {}, std::allocator<std::bitset<512>>()};
             std::vector<std::bitset<512>> belief_bits;
 
             belief_bits.reserve(original_beliefs.size());
@@ -288,7 +308,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
                         bs[i] = (i < it->size()) ? (*it)[i] : false;
                     }
 #pragma omp critical(form)
-                    formula_bits[formula_bits.size() - std::distance(it, formula_states.cend())] = std::move(bs);
+                    formula_bits[formula_bits.size() - std::distance(it, formula_states.cend())]
+                            = std::move(bs);
                 }
 #pragma omp for schedule(static) nowait
                 for (auto it = original_beliefs.cbegin(); it < original_beliefs.cend(); ++it) {
@@ -307,7 +328,8 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
                 if (orderings.empty()) {
                     distance_map.emplace(hamming(formula_bits[i], belief_bits), formula_states[i]);
                 } else {
-                    distance_map.emplace(pd_hamming_bitset(formula_bits[i], belief_bits, orderings), formula_states[i]);
+                    distance_map.emplace(pd_hamming_bitset(formula_bits[i], belief_bits, orderings),
+                            formula_states[i]);
                 }
             }
         } else {
@@ -364,7 +386,7 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
             }
             ofs << "\n";
         }
-        return;
+        return convert_to_num(revised_beliefs);
     }
 
     print_formula_dnf(convert_to_num(revised_beliefs));
@@ -384,7 +406,7 @@ void revise_beliefs(std::vector<std::vector<bool>>& original_beliefs, const std:
             }
         }
     }
-    return;
+    return convert_to_num(revised_beliefs);
 
 minimize:
     std::cout << "Minimization is possible\n";
@@ -429,9 +451,11 @@ minimize:
         }
         minimized.shrink_to_fit();
     }
+    return convert_to_num(revised_beliefs);
 }
 
-std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<int32_t>>& original_terms) noexcept {
+std::vector<std::vector<int32_t>> minimize_output(
+        const std::vector<std::vector<int32_t>>& original_terms) noexcept {
     std::vector<std::vector<int32_t>> output;
     output.reserve(original_terms.size());
 
@@ -480,32 +504,35 @@ std::vector<std::vector<int32_t>> minimize_output(const std::vector<std::vector<
         converted_term.clear();
     }
 
-
     for (auto& clause : output) {
         std::sort(clause.begin(), clause.end());
     }
 
     std::sort(output.begin(), output.end());
     output.erase(std::unique(output.begin(), output.end()), output.end());
-    output.erase(std::remove_if(output.begin(), output.end(), [](const auto& clause){return clause.empty();}), output.end());
+    output.erase(std::remove_if(output.begin(), output.end(),
+                         [](const auto& clause) { return clause.empty(); }),
+            output.end());
 
     //Remove subsets of existing clauses
     //This results in smaller end results, but doesn't really affect the initial state increase
     output.erase(std::remove_if(output.begin(), output.end(),
-                [&] (const auto& clause) {
-                    for (const auto& other : output) {
-                        if (clause == other || other.empty()) {
-                            continue;
-                        }
-                        if (std::includes(other.cbegin(), other.cend(), clause.cbegin(), clause.cend())) {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                ), output.end());
+                         [&](const auto& clause) {
+                             for (const auto& other : output) {
+                                 if (clause == other || other.empty()) {
+                                     continue;
+                                 }
+                                 if (std::includes(other.cbegin(), other.cend(), clause.cbegin(),
+                                             clause.cend())) {
+                                     return true;
+                                 }
+                             }
+                             return false;
+                         }),
+            output.end());
 
-    const auto abs_cmp = [](const auto& lhs, const auto& rhs){return std::abs(lhs) < std::abs(rhs);};
+    const auto abs_cmp
+            = [](const auto& lhs, const auto& rhs) { return std::abs(lhs) < std::abs(rhs); };
     for (auto& clause : output) {
         std::sort(clause.begin(), clause.end(), abs_cmp);
     }
