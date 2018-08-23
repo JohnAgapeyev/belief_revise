@@ -171,6 +171,14 @@ int main(int argc, char **argv) {
             //Convert CNF to DNF
             beliefs = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(beliefs));
         }
+
+        const auto abs_cmp = [](const auto a, const auto b){return std::abs(a) < std::abs(b);};
+
+        for (auto& clause : std::get<std::vector<std::vector<int32_t>>>(beliefs)) {
+            std::sort(clause.begin(), clause.end(), abs_cmp);
+        }
+        std::sort(std::get<std::vector<std::vector<int32_t>>>(beliefs).begin(), std::get<std::vector<std::vector<int32_t>>>(beliefs).end());
+
         //Convert DNF to raw
         beliefs = convert_dnf_to_raw(std::get<std::vector<std::vector<int32_t>>>(beliefs));
     }
@@ -183,6 +191,15 @@ int main(int argc, char **argv) {
         if (std::get<std::vector<std::vector<int32_t>>>(formula).size() > 1) {
             //Convert that DNF into CNF
             formula = convert_normal_forms(std::get<std::vector<std::vector<int32_t>>>(formula));
+        } else if (std::get<std::vector<std::vector<int32_t>>>(formula).size() == 1) {
+            //This is just needed to convert dnf formula into cnf input for belief revision
+            std::vector<std::vector<int32_t>> converted_form;
+            for (const auto clause : std::get<std::vector<std::vector<int32_t>>>(formula).front()) {
+                std::vector<int32_t> cnf_clause;
+                cnf_clause.emplace_back(clause);
+                converted_form.emplace_back(std::move(cnf_clause));
+            }
+            formula = converted_form;
         }
     }
     if (verbose) {

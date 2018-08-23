@@ -143,6 +143,13 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         output_states.emplace_back(std::move(clause_tokens));
     }
 
+    const auto abs_cmp = [](const auto a, const auto b){return std::abs(a) < std::abs(b);};
+
+    for (auto& clause : output_states) {
+        std::sort(clause.begin(), clause.end(), abs_cmp);
+    }
+    std::sort(output_states.begin(), output_states.end());
+
     std::vector<std::vector<bool>> generated_states;
 
     for (const auto& clause : output_states) {
