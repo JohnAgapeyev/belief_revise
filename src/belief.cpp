@@ -116,7 +116,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         }
     }
 
-    system("./minisat_all/bdd_minisat_all_release .tmp.input .tmp.output");
+    system("./minisat_all/bdd_minisat_all_release .tmp.input .tmp.output >/dev/null 2>&1");
 
     std::ifstream ifs{output_filename};
     if (!ifs) {
