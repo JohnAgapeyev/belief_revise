@@ -174,7 +174,7 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
                 continue;
             }
 
-#pragma omp critical
+#pragma omp critical(generated_states)
             generated_states.emplace_back(converted_state);
         }
     }
@@ -496,7 +496,7 @@ std::vector<std::vector<int32_t>> minimize_output(
                 }
                 converted_term.emplace_back(first[i]);
             }
-#pragma omp critical
+#pragma omp critical(output_emplace)
             output.emplace_back(converted_term);
             converted_term.clear();
             term_minimized = true;
@@ -506,7 +506,7 @@ std::vector<std::vector<int32_t>> minimize_output(
                 converted_term.emplace_back(first[i]);
             }
         }
-#pragma omp critical
+#pragma omp critical(output_emplace)
         output.emplace_back(converted_term);
         converted_term.clear();
     }
