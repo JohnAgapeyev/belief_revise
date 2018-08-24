@@ -103,8 +103,12 @@ std::vector<std::vector<bool>> generate_states(const std::vector<std::vector<int
         const char* input_filename = ".tmp.input";
         const char* output_filename = ".tmp.output";
 
-        creat(input_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-        creat(output_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+        if (access(input_filename, F_OK) == -1) {
+            creat(input_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+        }
+        if (access(output_filename, F_OK) == -1) {
+            creat(output_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+        }
 
         {
             std::ofstream ofs{input_filename, std::ios_base::out | std::ios_base::trunc};
